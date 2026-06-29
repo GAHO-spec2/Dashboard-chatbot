@@ -95,6 +95,16 @@ const statFinalizadas = document.getElementById("statFinalizadas");
 
 const interviewsTable = document.getElementById("interviewsTable");
 
+const calendarGrid = document.getElementById("calendarGrid");
+const calendarTitle = document.getElementById("calendarTitle");
+const calendarSummaryText = document.getElementById("calendarSummaryText");
+
+const prevWeekBtn = document.getElementById("prevWeekBtn");
+const todayWeekBtn = document.getElementById("todayWeekBtn");
+const nextWeekBtn = document.getElementById("nextWeekBtn");
+
+let currentWeekStart = getStartOfWeek(new Date());
+
 const searchInput = document.getElementById("searchInput");
 const filterDate = document.getElementById("filterDate");
 const filterMarca = document.getElementById("filterMarca");
@@ -321,9 +331,30 @@ function renderTable() {
 
 function render() {
   updateStats();
+  renderCalendar();
   renderTable();
 }
 
+if (prevWeekBtn) {
+  prevWeekBtn.addEventListener("click", () => {
+    currentWeekStart = addDays(currentWeekStart, -7);
+    render();
+  });
+}
+
+if (todayWeekBtn) {
+  todayWeekBtn.addEventListener("click", () => {
+    currentWeekStart = getStartOfWeek(new Date());
+    render();
+  });
+}
+
+if (nextWeekBtn) {
+  nextWeekBtn.addEventListener("click", () => {
+    currentWeekStart = addDays(currentWeekStart, 7);
+    render();
+  });
+}
 /* =========================
    MODAL DETALLE
 ========================= */
@@ -486,4 +517,133 @@ if (auth) {
   });
 } else {
   init();
+}
+
+function toDateInputValue(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function getStartOfWeek(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+
+  return d;
+}
+
+function addDays(date, days) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function getWeekDays(startDate) {
+  return Array.from({ length: 7 }, (_, index) => addDays(startDate, index));
+}
+
+function getHourFromTime(time = "") {
+  const hour = Number(String(time).split(":")[0]);
+  return Number.isFinite(hour) ? hour : 9;
+}
+
+function getCalendarHours(items = []) {
+  const hours = items.map(item => getHourFromTime(item.hora));
+
+  const minHour = Math.min(9, ...hours);
+  const maxHour = Math.max(18, ...hours);
+
+  return Array.from(
+    { length: maxHour - minHour + 1 },
+    (_, index) => minHour + index
+  );
+}
+
+function formatWeekTitle(days) {
+  const first = days[0];
+  const last = days[6];
+
+  return `Semana del ${formatDate(toDateInputValue(first))} al ${formatDate(toDateInputValue(last))}`;
+}
+
+
+function renderCalendar() {
+  if (!calendarGrid) return;
+
+  const days = getWeekDays(currentWeekStart);
+  const dayKeys = days.map(day => toDateInputValue(day));
+
+  const weekInterviews = getEntrevistasFiltradas().filter(item =>
+    dayKeys.includes(item.fecha)
+  );
+
+  const hours = getCalendarHours(weekInterviews);
+
+  if (calendarTitle) {
+    calendarTitle.textContent = formatWeekTitle(days);
+  }
+
+  if (calendarSummaryText) {
+    calendarSummaryText.textContent =
+      `${weekInterviews.length} entrevista${weekInterviews.length === 1 ? "" : "s"} agendada${weekInterviews.length === 1 ? "" : "s"} esta semana`;
+  }
+
+  let html = `
+    <div class="calendar-cell calendar-header-cell"></div>
+  `;
+
+  days.forEach((day) => {
+    const label = day.toLocaleDateString("es-MX", { weekday: "short" });
+    const number = day.getDate();
+
+    html += `
+      <div class="calendar-cell calendar-header-cell">
+        <span class="calendar-day-name">${label}</span>
+        <span class="calendar-day-date">${number}</span>
+      </div>
+    `;
+  });
+
+  hours.forEach((hour) => {
+    html += `
+      <div class="calendar-cell calendar-time-cell">
+        ${String(hour).padStart(2, "0")}:00
+      </div>
+    `;
+
+    days.forEach((day) => {
+      const key = toDateInputValue(day);
+
+      const events = weekInterviews.filter((item) => {
+        return item.fecha === key && getHourFromTime(item.hora) === hour;
+      });
+
+      html += `<div class="calendar-cell">`;
+
+      events.forEach((item) => {
+        html += `
+          <button
+            class="calendar-event calendar-event--${item.estado || "agendada"}"
+            data-calendar-id="${item.id}"
+            type="button">
+            <strong>${item.hora || ""} · ${item.candidatoNombre || "Candidato"}</strong>
+            <span>${item.puesto || "-"} · ${item.sucursal || "-"}</span>
+          </button>
+        `;
+      });
+
+      html += `</div>`;
+    });
+  });
+
+  calendarGrid.innerHTML = html;
+
+  document.querySelectorAll("[data-calendar-id]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const item = entrevistas.find(e => e.id === btn.dataset.calendarId);
+      if (item) openDetailModal(item);
+    });
+  });
 }
