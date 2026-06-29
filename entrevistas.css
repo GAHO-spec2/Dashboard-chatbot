@@ -514,3 +514,185 @@ td strong {
     width: 100%;
   }
 }
+
+/* =========================
+   CALENDARIO DE ENTREVISTAS
+========================= */
+
+.calendar-card {
+  padding: 24px;
+  margin-bottom: 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.calendar-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.calendar-label {
+  display: inline-flex;
+  margin-bottom: 8px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(78, 168, 255, 0.14);
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.calendar-head h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.calendar-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: 80px repeat(7, minmax(130px, 1fr));
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  overflow-x: auto;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.calendar-cell {
+  min-height: 82px;
+  padding: 10px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  position: relative;
+}
+
+.calendar-cell:last-child {
+  border-right: 0;
+}
+
+.calendar-header-cell {
+  min-height: 58px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  font-weight: 800;
+  text-align: center;
+}
+
+.calendar-time-cell {
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.calendar-day-name {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.calendar-day-date {
+  display: block;
+  margin-top: 4px;
+  font-size: 18px;
+  color: #ffffff;
+}
+
+.calendar-event {
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 9px 10px;
+  border-radius: 13px;
+  border: 1px solid rgba(78, 168, 255, 0.28);
+  background: rgba(78, 168, 255, 0.13);
+  color: #ffffff;
+  cursor: pointer;
+  text-align: left;
+  transition: 0.18s ease;
+}
+
+.calendar-event:hover {
+  transform: translateY(-1px);
+  background: rgba(78, 168, 255, 0.22);
+}
+
+.calendar-event strong {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 3px;
+}
+
+.calendar-event span {
+  display: block;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.calendar-event--agendada {
+  border-color: rgba(255, 209, 102, 0.25);
+  background: rgba(255, 209, 102, 0.13);
+}
+
+.calendar-event--confirmada {
+  border-color: rgba(78, 168, 255, 0.28);
+  background: rgba(78, 168, 255, 0.13);
+}
+
+.calendar-event--realizada {
+  border-color: rgba(53, 255, 138, 0.25);
+  background: rgba(53, 255, 138, 0.12);
+}
+
+.calendar-event--cancelada {
+  border-color: rgba(255, 107, 107, 0.28);
+  background: rgba(255, 107, 107, 0.12);
+}
+
+.calendar-event--reagendada {
+  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.10);
+}
+
+.calendar-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--muted);
+}
+
+.calendar-bell {
+  width: 32px;
+  height: 32px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(78, 168, 255, 0.14);
+}
+
+@media (max-width: 1100px) {
+  .calendar-head {
+    flex-direction: column;
+  }
+
+  .calendar-grid {
+    min-width: 980px;
+  }
+
+  .calendar-card {
+    overflow-x: auto;
+  }
+}
