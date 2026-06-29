@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vacantes | GA Hospitality</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="icons8-documento-32.png">
+  <link rel="stylesheet" href="dashboard.css?v=2" />
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar__left">
+      <img src="gaho.png" alt="GA Hospitality" class="corporativo-logo" />
+      <div>
+        <h2>GA Hospitality</h2>
+        <p>Administración de vacantes</p>
+      </div>
+    </div>
+
+    <div class="topbar__right">
+      <a href="dashboard.html" class="btn btn--secondary">Ver candidatos</a>
+    </div>
+  </header>
+
+  <main class="container dashboard-container">
+    <section class="card">
+      <div class="section-head dashboard-head">
+        <div>
+          <h2>Administración de vacantes</h2>
+          <p>Agrega, edita y elimina ofertas laborales por ciudad, marca, sucursal y ubicación.</p>
+        </div>
+
+        <div class="dashboard-actions">
+          <button id="openVacanteModalBtn" class="btn btn--primary">Agregar vacante</button>
+          <button id="refreshVacantesBtn" class="btn btn--secondary">Actualizar vacantes</button>
+        </div>
+      </div>
+
+      <div class="form-grid">
+        <div class="field">
+          <label for="adminFiltroTipo">Tipo</label>
+          <select id="adminFiltroTipo">
+            <option value="">Todos</option>
+            <option value="operativa">Operativa / Restaurante</option>
+            <option value="administrativa">Administrativa / Corporativo</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="adminFiltroPais">País</label>
+          <select id="adminFiltroPais">
+            <option value="">Todos</option>
+            <option value="Mexico">México</option>
+            <option value="Estados Unidos">Estados Unidos</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="adminFiltroEstado">Estado</label>
+          <select id="adminFiltroEstado">
+            <option value="">Todos</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="adminFiltroCiudad">Ciudad</label>
+          <select id="adminFiltroCiudad">
+            <option value="">Todas</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="vacantesAdminStatus" class="status hidden"></div>
+      <div id="vacantesAdminList" class="dashboard-grid"></div>
+    </section>
+  </main>
+
+  <div id="vacanteModal" class="modal hidden">
+    <div class="modal__backdrop" id="closeVacanteBackdrop"></div>
+
+    <div class="modal__content">
+      <div class="modal__header">
+        <div>
+          <h3 id="vacanteModalTitle">Nueva vacante</h3>
+          <p>Configura la vacante, sucursal y ubicación en mapas.</p>
+        </div>
+        <button id="closeVacanteModalBtn" class="chatbot-close">✕</button>
+      </div>
+
+      <div class="modal__body">
+        <form id="vacanteForm" class="form-grid">
+          <input type="hidden" id="vacanteIdEdit" />
+
+          <div class="field">
+            <label for="vacanteTipo">Tipo de vacante</label>
+            <select id="vacanteTipo" required>
+              <option value="">Selecciona</option>
+              <option value="operativa">Operativa / Restaurante</option>
+              <option value="administrativa">Administrativa / Corporativo</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="vacanteGrupo">Marca / Departamento</label>
+            <input id="vacanteGrupo" type="text" placeholder="Ej. Applebee's, Wendy's, RH" required />
+          </div>
+
+          <div class="field">
+            <label for="vacanteTituloInput">Título</label>
+            <input id="vacanteTituloInput" type="text" placeholder="Ej. Hostess" required />
+          </div>
+
+          <div class="field">
+            <label for="vacanteArea">Área</label>
+            <input id="vacanteArea" type="text" placeholder="Ej. Recepción" required />
+          </div>
+
+          <div class="field">
+            <label for="vacantePais">País</label>
+            <select id="vacantePais" required>
+              <option value="">Selecciona</option>
+              <option value="Mexico">México</option>
+              <option value="Estados Unidos">Estados Unidos</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="vacanteEstado">Estado</label>
+            <select id="vacanteEstado" required>
+              <option value="">Selecciona</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="vacanteCiudad">Ciudad</label>
+            <select id="vacanteCiudad" required>
+              <option value="">Selecciona</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="vacanteSucursal">Sucursal</label>
+            <input id="vacanteSucursal" type="text" placeholder="Ej. Tecnológico / Corporativo" required />
+          </div>
+
+          <div class="field">
+            <label for="vacanteNumeroTienda">Número de tienda</label>
+            <input id="vacanteNumeroTienda" type="text" placeholder="Ej. 042, 4142, APB-TEC" />
+          </div>
+
+          <div class="field field--full">
+            <label for="vacanteDireccion">Dirección completa</label>
+            <input id="vacanteDireccion" type="text" placeholder="Ej. Av. Tecnológico 1234, Ciudad Juárez, Chihuahua" />
+          </div>
+
+          <div class="field field--full">
+            <label for="vacanteGoogleMapsUrl">URL de Google Maps</label>
+            <input id="vacanteGoogleMapsUrl" type="url" placeholder="Pega aquí el enlace de Google Maps de la sucursal" />
+          </div>
+
+          <div class="field field--full">
+            <label for="vacanteAppleMapsUrl">URL de Apple Maps</label>
+            <input id="vacanteAppleMapsUrl" type="url" placeholder="Opcional: pega aquí el enlace de Apple Maps" />
+          </div>
+
+          <div class="field">
+            <label for="vacanteLat">Latitud</label>
+            <input id="vacanteLat" type="number" step="any" placeholder="Ej. 31.6904" />
+          </div>
+
+          <div class="field">
+            <label for="vacanteLng">Longitud</label>
+            <input id="vacanteLng" type="number" step="any" placeholder="Ej. -106.4245" />
+          </div>
+
+          <div class="field field--full">
+            <label for="vacanteRequisitos">Requisitos</label>
+            <textarea id="vacanteRequisitos" rows="4" placeholder="Separa cada requisito con coma" required></textarea>
+          </div>
+        </form>
+      </div>
+
+      <div class="modal__footer">
+        <button id="saveVacanteBtn" class="btn btn--primary">Guardar vacante</button>
+      </div>
+    </div>
+  </div>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="vacantes-admin.js?v=3"></script>
+  
+</body>
+</html>

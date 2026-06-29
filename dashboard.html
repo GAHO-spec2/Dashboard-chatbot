@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard RH | GA Hospitality</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="icons8-documento-32.png">
+  <link rel="stylesheet" href="dashboard.css?v=2" />
+
+  </head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar__left">
+      <img src="gaho.png" alt="GA Hospitality" class="corporativo-logo" />
+      <div>
+        <h2>GA Hospitality</h2>
+        <p>Dashboard de reclutamiento</p>
+      </div>
+    </div>
+
+    <div class="topbar__right">
+      <a href="vacantes-admin.html" class="btn btn--secondary">Administrar vacantes</a>
+      <button id="logoutBtn" class="btn btn--primary" type="button">Cerrar sesion</button>
+    </div>
+  </header>
+
+  <main class="container dashboard-container">
+    <section class="card">
+      <div class="section-head dashboard-head">
+        <div>
+          <h2>Candidatos registrados</h2>
+          <p>Visualiza postulaciones, consulta CV y actualiza su estatus.</p>
+        </div>
+
+        <div class="dashboard-actions">
+          <button id="refreshBtn" class="btn btn--primary">Actualizar</button>
+        </div>
+      </div>
+
+      <div class="dashboard-stats">
+        <div class="stat-box">
+          <span>Total</span>
+          <strong id="statTotal">0</strong>
+        </div>
+        <div class="stat-box">
+          <span>Pendientes</span>
+          <strong id="statPendiente">0</strong>
+        </div>
+        <div class="stat-box">
+          <span>Aprobados</span>
+          <strong id="statAprobado">0</strong>
+        </div>
+        <div class="stat-box">
+          <span>Rechazados</span>
+          <strong id="statRechazado">0</strong>
+        </div>
+      </div>
+
+      <div id="dashboardStatus" class="status hidden"></div>
+      <div id="postulacionesList" class="dashboard-grid"></div>
+    </section>
+  </main>
+
+  <div id="candidateModal" class="modal hidden">
+    <div class="modal__backdrop" id="closeModalBackdrop"></div>
+
+    <div class="modal__content">
+      <div class="modal__header">
+        <div>
+          <h3 id="modalNombre">Detalle del candidato</h3>
+          <p id="modalEstado">Estado: pendiente</p>
+        </div>
+        <button id="closeModalBtn" class="chatbot-close">x</button>
+      </div>
+
+      <div class="modal__body">
+        <div class="modal-grid">
+          <div class="modal-item">
+            <span>Ciudad</span>
+            <strong id="modalCiudad">-</strong>
+          </div>
+          <div class="modal-item">
+            <span>Sucursal</span>
+            <strong id="modalSucursal">-</strong>
+          </div>
+          <div class="modal-item">
+            <span>Puesto de interes</span>
+            <strong id="modalPuesto">-</strong>
+          </div>
+          <div class="modal-item">
+            <span>Escolaridad</span>
+            <strong id="modalEscolaridad">-</strong>
+          </div>
+          <div class="modal-item">
+            <span>Fecha de registro</span>
+            <strong id="modalFecha">-</strong>
+          </div>
+        </div>
+
+        <div class="modal-section">
+          <h4>Direccion de sucursal</h4>
+          <p id="modalDireccion">-</p>
+          <div class="modal-map-actions">
+            <a id="modalGoogleMapsLink" href="#" target="_blank" class="btn btn--secondary hidden">Google Maps</a>
+            <a id="modalAppleMapsLink" href="#" target="_blank" class="btn btn--secondary hidden">Apple Maps</a>
+          </div>
+        </div>
+
+        <div class="modal-section">
+          <h4>Experiencia</h4>
+          <p id="modalExperiencia">-</p>
+        </div>
+
+        <div class="modal-section">
+          <h4>Habilidades</h4>
+          <p id="modalHabilidades">-</p>
+        </div>
+
+        <div class="modal-section">
+          <h4>CV adjunto</h4>
+          <a id="modalCvLink" href="#" target="_blank" class="btn btn--secondary">Ver CV PDF</a>
+        </div>
+      </div>
+
+      <div class="modal__footer">
+        <button id="approveBtn" class="btn btn--primary">Aprobar</button>
+        <button id="rejectBtn" class="btn btn--secondary">Rechazar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>

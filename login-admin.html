@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Acceso administrativo | GA Hospitality</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="icons8-documento-32.png" />
+ <link rel="stylesheet" href="dashboard.css?v=2" />
+</head>
+<body>
+  <main class="login-shell">
+    <section class="login-card">
+      <div class="login-brand">
+        <img src="gaho.png" alt="GA Hospitality" />
+        <div>
+          <h1>GA Hospitality</h1>
+          <p>Acceso administrativo</p>
+        </div>
+      </div>
+
+      <div class="section-head">
+        <h2>Iniciar sesión</h2>
+        <p>Ingresa con tu cuenta autorizada para acceder al dashboard de reclutamiento.</p>
+      </div>
+
+      <div class="login-form">
+        <div class="field">
+          <label for="adminEmail">Correo electrónico</label>
+          <input
+            id="adminEmail"
+            type="email"
+            placeholder="admin@empresa.com"
+            autocomplete="username"
+          />
+        </div>
+
+        <div class="field">
+          <label for="adminPassword">Contraseña</label>
+          <input
+            id="adminPassword"
+            type="password"
+            placeholder="••••••••"
+            autocomplete="current-password"
+          />
+        </div>
+
+        <div class="login-actions">
+          <button id="loginBtn" class="btn btn--primary" type="button">
+            Iniciar sesión
+          </button>
+        </div>
+      </div>
+
+      <div id="loginStatus" class="status hidden"></div>
+
+      <p class="login-note">
+        Solo personal autorizado puede acceder a esta sección.
+      </p>
+    </section>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="login-admin.js"></script>
+</body>
+</html>
