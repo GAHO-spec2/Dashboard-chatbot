@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Entrevistas RH | GA Hospitality</title>
   <link rel="icon" type="image/png" sizes="32x32" href="icons8-documento-32.png">
-  <link rel="stylesheet" href="entrevistas.css?v=1" />
+  <link rel="stylesheet" href="entrevistas.css?v=2" />
 </head>
 <body>
 
@@ -63,6 +63,28 @@
         <div class="stat-box">
           <span>Finalizadas</span>
           <strong id="statFinalizadas">0</strong>
+        </div>
+      </section>
+
+      <section class="calendar-card">
+        <div class="calendar-head">
+          <div>
+            <span class="calendar-label">Agenda semanal</span>
+            <h2 id="calendarTitle">Entrevistas de la semana</h2>
+          </div>
+
+          <div class="calendar-actions">
+            <button id="prevWeekBtn" class="btn btn--secondary">Semana anterior</button>
+            <button id="todayWeekBtn" class="btn btn--primary">Hoy</button>
+            <button id="nextWeekBtn" class="btn btn--secondary">Semana siguiente</button>
+          </div>
+        </div>
+
+        <div class="calendar-grid" id="calendarGrid"></div>
+
+        <div class="calendar-summary">
+          <span class="calendar-bell">🔔</span>
+          <span id="calendarSummaryText">0 entrevistas agendadas esta semana</span>
         </div>
       </section>
 
