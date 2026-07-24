@@ -473,7 +473,6 @@ function closeDeleteModal() {
   }
 }
 
-
 function handleTableAction(action, id) {
   const item = findInterview(id);
 
@@ -505,7 +504,6 @@ function handleTableAction(action, id) {
   if (action === "delete") {
     openDeleteModal(item);
   }
-}
 }
 
 async function eliminarEntrevistaSeleccionada() {
