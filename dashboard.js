@@ -1,4 +1,4 @@
-const API_URL = window.location.origin;
+const API_URL ="https://chatbot-reclutamiento-dcqb.onrender.com";
 const DASHBOARD_CACHE_KEY = "rh_postulaciones_cache";
 const DASHBOARD_CACHE_TIME = 2 * 60 * 1000;
 /* =========================
