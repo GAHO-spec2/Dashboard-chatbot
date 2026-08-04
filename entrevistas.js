@@ -296,7 +296,9 @@ function estadoLabel(estado = "") {
     confirmada: "Confirmada",
     realizada: "Realizada",
     cancelada: "Cancelada",
-    reagendada: "Reagendada"
+    reagendada: "Reagendada",
+    pendiente_confirmacion:
+  "Pendiente de confirmación",
   };
 
   return labels[estado] || "Agendada";
