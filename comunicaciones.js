@@ -1,12 +1,9 @@
-"use strict";
-
-/* =========================================================
-   CONFIGURACIÓN
-========================================================= */
-
-const API_URL =
-  "https://chatbot-reclutamiento-dcqb.onrender.com";
-
+const API_URL ="https://chatbot-reclutamiento-dcqb.onrender.com";
+const DASHBOARD_CACHE_KEY = "rh_postulaciones_cache";
+const DASHBOARD_CACHE_TIME = 2 * 60 * 1000;
+/* =========================
+   FIREBASE AUTH
+========================= */
 const firebaseConfig = {
   apiKey: "AIzaSyD6t7kfGjBllkzuDVarL7oaECryUa2-fx4",
   authDomain: "chatbotgpt-2eb38.firebaseapp.com",
@@ -17,1940 +14,2174 @@ const firebaseConfig = {
   measurementId: "G-0W817YXQ6T"
 };
 
-/*
- * Si Firebase ya se inicializa desde otro archivo
- * o tienes la configuración completa en este mismo
- * proyecto, conserva esa configuración original.
- */
-if (
-  typeof firebase !== "undefined" &&
-  !firebase.apps.length &&
-  !firebaseConfig.apiKey.startsWith(
-    "REEMPLAZA"
-  )
-) {
-  firebase.initializeApp(
-    firebaseConfig
-  );
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
 }
 
-const auth =
-  typeof firebase !== "undefined" &&
-  firebase.apps.length
-    ? firebase.auth()
-    : null;
-
-/* =========================================================
-   ESTADO GENERAL
-========================================================= */
-
+const auth = firebase.auth();
 let adminToken = "";
-let plantillas = [];
-let comunicaciones = [];
 
-let activeEditorField = null;
-let plantillaSeleccionada = null;
+/* =========================
+   ELEMENTOS
+========================= */
+const postulacionesList = document.getElementById("postulacionesList");
+const dashboardStatus = document.getElementById("dashboardStatus");
+const refreshBtn = document.getElementById("refreshBtn");
+const logoutBtn = document.getElementById("logoutBtn");
 
-/* =========================================================
-   ELEMENTOS GENERALES
-========================================================= */
-
-const logoutBtn =
+const statTotal = document.getElementById("statTotal");
+const statPendiente = document.getElementById("statPendiente");
+const statAprobado = document.getElementById("statAprobado");
+const statRechazado = document.getElementById("statRechazado");
+const statMuyRecomendados =
   document.getElementById(
-    "logoutBtn"
+    "statMuyRecomendados"
   );
 
-const newTemplateBtn =
+const statTrasladoCompatible =
   document.getElementById(
-    "newTemplateBtn"
+    "statTrasladoCompatible"
   );
 
-const sendTestEmailBtn =
+const statPendientesRevision =
   document.getElementById(
-    "sendTestEmailBtn"
+    "statPendientesRevision"
   );
 
-const quickNewTemplateBtn =
+const modal = document.getElementById("candidateModal");
+const closeModalBtn = document.getElementById("closeModalBtn");
+const closeModalBackdrop = document.getElementById("closeModalBackdrop");
+
+const modalNombre = document.getElementById("modalNombre");
+const modalEstado = document.getElementById("modalEstado");
+const modalCiudad = document.getElementById("modalCiudad");
+const modalSucursal = document.getElementById("modalSucursal");
+const modalPuesto = document.getElementById("modalPuesto");
+const modalEscolaridad = document.getElementById("modalEscolaridad");
+const modalFecha = document.getElementById("modalFecha");
+const modalDireccion = document.getElementById("modalDireccion");
+const modalExperiencia = document.getElementById("modalExperiencia");
+const modalHabilidades = document.getElementById("modalHabilidades");
+const modalCvLink = document.getElementById("modalCvLink");
+const modalCodigoPostal =
+  document.getElementById("modalCodigoPostal");
+
+const modalMedioTransporte =
+  document.getElementById("modalMedioTransporte");
+
+const modalVehiculoPropio =
+  document.getElementById("modalVehiculoPropio");
+
+const modalTiempoMaximoTraslado =
   document.getElementById(
-    "quickNewTemplateBtn"
+    "modalTiempoMaximoTraslado"
   );
 
-const quickSendTestBtn =
+const modalDistanciaSucursal =
   document.getElementById(
-    "quickSendTestBtn"
+    "modalDistanciaSucursal"
   );
 
-const quickHistoryBtn =
+const modalTiempoEstimado =
   document.getElementById(
-    "quickHistoryBtn"
+    "modalTiempoEstimado"
   );
 
-const quickAutomationBtn =
+const modalEtiquetaDistancia =
   document.getElementById(
-    "quickAutomationBtn"
+    "modalEtiquetaDistancia"
   );
 
-const viewAllTemplatesBtn =
+const modalDistanciaBadge =
   document.getElementById(
-    "viewAllTemplatesBtn"
+    "modalDistanciaBadge"
+  );
+const modalCompatibilidadTraslado =
+  document.getElementById(
+    "modalCompatibilidadTraslado"
   );
 
-const refreshCommunicationsBtn =
+const modalCompatibilidadAlert =
   document.getElementById(
-    "refreshCommunicationsBtn"
+    "modalCompatibilidadAlert"
   );
 
-/* =========================================================
-   ESTADÍSTICAS
-========================================================= */
+const modalGoogleMapsLink = document.getElementById("modalGoogleMapsLink");
+const modalAppleMapsLink = document.getElementById("modalAppleMapsLink");
 
-const statSentToday =
+const approveBtn = document.getElementById("approveBtn");
+const rejectBtn = document.getElementById("rejectBtn");
+const scheduleInterviewBtn = document.getElementById("scheduleInterviewBtn");
+
+const interviewModal = document.getElementById("interviewModal");
+const closeInterviewBtn = document.getElementById("closeInterviewBtn");
+const closeInterviewBackdrop = document.getElementById("closeInterviewBackdrop");
+const interviewDate = document.getElementById("interviewDate");
+const interviewTime = document.getElementById("interviewTime");
+const interviewRecruiter = document.getElementById("interviewRecruiter");
+const interviewType = document.getElementById("interviewType");
+const interviewComments = document.getElementById("interviewComments");
+const saveInterviewBtn = document.getElementById("saveInterviewBtn");
+
+let postulaciones = [];
+let selectedCandidate = null;
+
+/* =========================
+   SELECCIÓN DE CANDIDATOS
+========================= */
+
+let selectedCandidateIds =
+  new Set();
+
+const selectAllCandidates =
   document.getElementById(
-    "statSentToday"
+    "selectAllCandidates"
   );
 
-const statPending =
+const selectedCandidatesCount =
   document.getElementById(
-    "statPending"
+    "selectedCandidatesCount"
   );
 
-const statErrors =
+const deleteSelectedCandidatesBtn =
   document.getElementById(
-    "statErrors"
+    "deleteSelectedCandidatesBtn"
   );
 
-const statDeliveryRate =
+const candidateSearch = document.getElementById("candidateSearch");
+const candidateStatusFilter = document.getElementById(
+  "candidateStatusFilter"
+);
+const candidateTypeFilter = document.getElementById(
+  "candidateTypeFilter"
+);
+const clearCandidateFiltersBtn = document.getElementById(
+  "clearCandidateFiltersBtn"
+);
+
+const candidateCompatibilityFilter =
   document.getElementById(
-    "statDeliveryRate"
+    "candidateCompatibilityFilter"
   );
 
-/* =========================================================
-   LISTADOS
-========================================================= */
-
-const templatesGrid =
+const candidateTransportFilter =
   document.getElementById(
-    "templatesGrid"
+    "candidateTransportFilter"
   );
 
-const communicationsList =
+const candidateSort =
   document.getElementById(
-    "communicationsList"
+    "candidateSort"
   );
 
-/* =========================================================
-   MODAL DE PLANTILLA
-========================================================= */
-
-const templateModal =
+const candidateResultsCount =
   document.getElementById(
-    "templateModal"
+    "candidateResultsCount"
   );
 
-const closeTemplateBackdrop =
+const candidateActiveFilters =
   document.getElementById(
-    "closeTemplateBackdrop"
+    "candidateActiveFilters"
   );
 
-const closeTemplateModalBtn =
+const modalCompatibilityScore =
   document.getElementById(
-    "closeTemplateModalBtn"
+    "modalCompatibilityScore"
   );
 
-const cancelTemplateBtn =
+const modalCompatibilityScoreValue =
   document.getElementById(
-    "cancelTemplateBtn"
+    "modalCompatibilityScoreValue"
   );
 
-const saveTemplateBtn =
+const modalCompatibilityLevel =
   document.getElementById(
-    "saveTemplateBtn"
+    "modalCompatibilityLevel"
   );
 
-const refreshPreviewBtn =
+const modalScoreCv =
+  document.getElementById("modalScoreCv");
+
+const modalScoreExperience =
   document.getElementById(
-    "refreshPreviewBtn"
+    "modalScoreExperience"
   );
 
-const templateModalTitle =
+const modalScoreAvailability =
   document.getElementById(
-    "templateModalTitle"
+    "modalScoreAvailability"
   );
 
-const templateForm =
+const modalScoreGeography =
   document.getElementById(
-    "templateForm"
+    "modalScoreGeography"
   );
 
-const templateId =
+const modalScoreQuestions =
   document.getElementById(
-    "templateId"
+    "modalScoreQuestions"
   );
 
-const templateName =
+const modalCompatibilityReasons =
   document.getElementById(
-    "templateName"
+    "modalCompatibilityReasons"
   );
 
-const templateType =
+const modalCompatibilityAlerts =
   document.getElementById(
-    "templateType"
+    "modalCompatibilityAlerts"
   );
 
-const templateChannel =
-  document.getElementById(
-    "templateChannel"
-  );
+/* =========================
+   HELPERS
+========================= */
+function setStatus(message, show = true) {
+  if (!dashboardStatus) return;
+  dashboardStatus.textContent = message;
+  dashboardStatus.classList.toggle("hidden", !show);
+}
 
-const templateLanguage =
-  document.getElementById(
-    "templateLanguage"
-  );
+function formatFecha(fechaIso) {
+  if (!fechaIso) return "-";
 
-const templateSubject =
-  document.getElementById(
-    "templateSubject"
-  );
+  const date = new Date(fechaIso);
+  if (isNaN(date.getTime())) return "-";
 
-const templateText =
-  document.getElementById(
-    "templateText"
-  );
+  return date.toLocaleString("es-MX", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
 
-const templateHtml =
-  document.getElementById(
-    "templateHtml"
-  );
+function getEstadoClass(estado) {
+  if (estado === "aprobado") return "estado estado--aprobado";
 
-const previewSubject =
-  document.getElementById(
-    "previewSubject"
-  );
-
-const templatePreview =
-  document.getElementById(
-    "templatePreview"
-  );
-
-/* =========================================================
-   PLANTILLAS INICIALES
-========================================================= */
-
-const DEFAULT_TEMPLATES = [
-  {
-    id:
-      "postulacion_recibida",
-
-    nombre:
-      "Postulación recibida",
-
-    tipo:
-      "postulacion_recibida",
-
-    canal:
-      "email",
-
-    idioma:
-      "es",
-
-    asunto:
-      "Recibimos tu postulación | GA Hospitality",
-
-    contenidoTexto:
-`Hola {{nombre}},
-
-Hemos recibido correctamente tu postulación.
-
-Folio: {{folio}}
-Vacante: {{vacante}}
-Sucursal: {{sucursal}}
-
-Puedes conservar este folio para consultar el avance de tu proceso.
-
-Gracias por tu interés en formar parte de {{empresa}}.`,
-
-    contenidoHtml:
-`<div style="font-family:Arial,sans-serif;max-width:650px;margin:auto;color:#243047;">
-  <div style="background:#101a2c;padding:24px;border-radius:16px 16px 0 0;text-align:center;color:white;">
-    <h2 style="margin:0;">GA Hospitality</h2>
-    <p style="margin:6px 0 0;color:#b8c4d8;">Departamento de Reclutamiento</p>
-  </div>
-
-  <div style="padding:32px;background:#ffffff;border:1px solid #e4e9f0;">
-    <h1 style="font-size:25px;margin-top:0;color:#17243a;">
-      ¡Gracias por postularte, {{nombre}}!
-    </h1>
-
-    <p style="line-height:1.7;color:#566278;">
-      Hemos recibido correctamente tu solicitud y nuestro equipo comenzará a revisar tu información.
-    </p>
-
-    <div style="margin:24px 0;padding:20px;background:#f5f8fc;border-radius:12px;">
-      <p><strong>Folio:</strong> {{folio}}</p>
-      <p><strong>Vacante:</strong> {{vacante}}</p>
-      <p><strong>Sucursal:</strong> {{sucursal}}</p>
-      <p><strong>Estado:</strong> Solicitud recibida</p>
-    </div>
-
-    <p style="line-height:1.7;color:#566278;">
-      Conserva tu folio para consultar el avance de tu proceso.
-    </p>
-  </div>
-
-  <div style="padding:18px;background:#f0f3f7;text-align:center;color:#758096;font-size:12px;border-radius:0 0 16px 16px;">
-    {{empresa}} · Reclutamiento
-  </div>
-</div>`,
-
-    activo: true
-  },
-
-  {
-    id:
-      "entrevista_programada",
-
-    nombre:
-      "Entrevista programada",
-
-    tipo:
-      "entrevista_programada",
-
-    canal:
-      "email",
-
-    idioma:
-      "es",
-
-    asunto:
-      "Tu entrevista ha sido programada | GA Hospitality",
-
-    contenidoTexto:
-`Hola {{nombre}},
-
-Tu entrevista ha sido programada.
-
-Vacante: {{vacante}}
-Fecha: {{fecha}}
-Hora: {{hora}}
-Duración: {{duracion}}
-Modalidad: {{modalidad}}
-Sucursal: {{sucursal}}
-Dirección: {{direccion}}
-Reclutador: {{reclutador}}
-
-Ubicación:
-{{googleMaps}}
-
-Por favor, llega 15 minutos antes.`,
-
-    contenidoHtml:
-`<div style="font-family:Arial,sans-serif;max-width:650px;margin:auto;color:#243047;">
-  <div style="background:linear-gradient(135deg,#111c30,#274c89);padding:28px;border-radius:16px 16px 0 0;text-align:center;color:white;">
-    <h2 style="margin:0;">GA Hospitality</h2>
-    <p style="margin:7px 0 0;color:#d6e2f6;">Tu entrevista está lista</p>
-  </div>
-
-  <div style="padding:32px;background:#ffffff;border:1px solid #e4e9f0;">
-    <h1 style="font-size:25px;margin-top:0;color:#17243a;">
-      Hola {{nombre}}
-    </h1>
-
-    <p style="line-height:1.7;color:#566278;">
-      Nos complace informarte que tu entrevista para la vacante
-      <strong>{{vacante}}</strong> ha sido programada.
-    </p>
-
-    <div style="margin:24px 0;padding:22px;background:#f5f8fc;border-radius:12px;">
-      <p><strong>Fecha:</strong> {{fecha}}</p>
-      <p><strong>Hora:</strong> {{hora}}</p>
-      <p><strong>Duración:</strong> {{duracion}}</p>
-      <p><strong>Modalidad:</strong> {{modalidad}}</p>
-      <p><strong>Reclutador:</strong> {{reclutador}}</p>
-    </div>
-
-    <h3 style="color:#17243a;">Lugar de la entrevista</h3>
-
-    <p style="line-height:1.7;color:#566278;">
-      <strong>Sucursal:</strong> {{sucursal}}<br>
-      <strong>Dirección:</strong> {{direccion}}
-    </p>
-
-    <p style="margin:28px 0;text-align:center;">
-      <a
-        href="{{googleMaps}}"
-        style="display:inline-block;padding:13px 21px;background:#286bd6;color:#ffffff;text-decoration:none;border-radius:9px;font-weight:bold;"
-      >
-        Abrir ubicación
-      </a>
-    </p>
-
-    <p style="line-height:1.7;color:#566278;">
-      Te recomendamos llegar 15 minutos antes y presentarte en recepción.
-    </p>
-  </div>
-
-  <div style="padding:18px;background:#f0f3f7;text-align:center;color:#758096;font-size:12px;border-radius:0 0 16px 16px;">
-    {{empresa}} · Departamento de Reclutamiento
-  </div>
-</div>`,
-
-    activo: true
-  },
-
-  {
-    id:
-      "entrevista_reagendada",
-
-    nombre:
-      "Entrevista reagendada",
-
-    tipo:
-      "entrevista_reagendada",
-
-    canal:
-      "email",
-
-    idioma:
-      "es",
-
-    asunto:
-      "Tu entrevista fue reprogramada | GA Hospitality",
-
-    contenidoTexto:
-`Hola {{nombre}},
-
-Tu entrevista ha sido reprogramada.
-
-Nueva fecha: {{fecha}}
-Nueva hora: {{hora}}
-Vacante: {{vacante}}
-Sucursal: {{sucursal}}
-Reclutador: {{reclutador}}
-
-Ubicación:
-{{googleMaps}}`,
-
-    contenidoHtml:
-`<div style="font-family:Arial,sans-serif;max-width:650px;margin:auto;color:#243047;">
-  <div style="background:#101a2c;padding:25px;text-align:center;color:white;border-radius:16px 16px 0 0;">
-    <h2 style="margin:0;">Entrevista reprogramada</h2>
-  </div>
-
-  <div style="padding:32px;background:white;border:1px solid #e4e9f0;">
-    <h2>Hola {{nombre}}</h2>
-
-    <p>
-      Tu entrevista para la vacante
-      <strong>{{vacante}}</strong>
-      fue reprogramada.
-    </p>
-
-    <div style="padding:20px;background:#f5f8fc;border-radius:12px;margin:22px 0;">
-      <p><strong>Nueva fecha:</strong> {{fecha}}</p>
-      <p><strong>Nueva hora:</strong> {{hora}}</p>
-      <p><strong>Sucursal:</strong> {{sucursal}}</p>
-      <p><strong>Reclutador:</strong> {{reclutador}}</p>
-    </div>
-
-    <p style="text-align:center;">
-      <a href="{{googleMaps}}" style="display:inline-block;background:#286bd6;color:white;text-decoration:none;padding:12px 20px;border-radius:8px;">
-        Consultar ubicación
-      </a>
-    </p>
-  </div>
-</div>`,
-
-    activo: true
+  if (estado === "rechazado") {
+    return "estado estado--rechazado";
   }
-];
 
-/* =========================================================
-   SEGURIDAD Y ENCABEZADOS
-========================================================= */
+  if (estado === "entrevista_agendada") {
+    return "estado estado--entrevista";
+  }
 
-function authHeaders(
-  extraHeaders = {}
+  return "estado estado--pendiente";
+}
+
+function authHeaders(extra = {}) {
+  return {
+    ...extra,
+    Authorization: `Bearer ${adminToken}`
+  };
+}
+
+function setMapLink(element, url) {
+  if (!element) return;
+
+  if (!url) {
+    element.href = "#";
+    element.classList.add("hidden");
+    return;
+  }
+
+  element.href = url;
+  element.classList.remove("hidden");
+}
+
+function getGoogleMapsUrl(candidate) {
+  const direccion = candidate.direccion || candidate.sucursalDireccion || "";
+  const ciudad = candidate.ciudad || "";
+  const sucursal = candidate.sucursal || candidate.sucursalNombre || "";
+
+  const query = [direccion, sucursal, ciudad].filter(Boolean).join(" ");
+  if (!query) return "";
+
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
+function getAppleMapsUrl(candidate) {
+  const direccion = candidate.direccion || candidate.sucursalDireccion || "";
+  const ciudad = candidate.ciudad || "";
+  const sucursal = candidate.sucursal || candidate.sucursalNombre || "";
+
+  const query = [direccion, sucursal, ciudad].filter(Boolean).join(" ");
+  if (!query) return "";
+
+  return `https://maps.apple.com/?q=${encodeURIComponent(query)}`;
+}
+
+/* =========================
+   DISTANCIA Y TRASLADO
+========================= */
+
+function formatDistance(distance) {
+  const value = Number(distance);
+
+  if (!Number.isFinite(value)) {
+    return "No disponible";
+  }
+
+  return `${value.toFixed(1)} km`;
+}
+
+function formatTravelTime(minutes) {
+  const value = Number(minutes);
+
+  if (!Number.isFinite(value)) {
+    return "No disponible";
+  }
+
+  if (value < 60) {
+    return `${Math.round(value)} min`;
+  }
+
+  const hours = Math.floor(value / 60);
+  const remainingMinutes =
+    Math.round(value % 60);
+
+  if (!remainingMinutes) {
+    return `${hours} h`;
+  }
+
+  return `${hours} h ${remainingMinutes} min`;
+}
+
+function getDistanceBadgeClass(
+  classification = ""
 ) {
-  const headers = {
-    ...extraHeaders
+  const normalized =
+    String(classification || "")
+      .toLowerCase()
+      .trim();
+
+  const classes = {
+    cercana:
+      "distance-badge distance-badge--near",
+
+    moderada:
+      "distance-badge distance-badge--moderate",
+
+    considerable:
+      "distance-badge distance-badge--considerable",
+
+    lejana:
+      "distance-badge distance-badge--far",
+
+    no_disponible:
+      "distance-badge distance-badge--unknown"
   };
 
-  if (adminToken) {
-    headers.Authorization =
-      `Bearer ${adminToken}`;
-  }
-
-  return headers;
+  return (
+    classes[normalized] ||
+    classes.no_disponible
+  );
 }
 
-async function obtenerAdminToken() {
-  if (!auth?.currentUser) {
-    return "";
-  }
+function getDistanceBadgeText(
+  classification = ""
+) {
+  const normalized =
+    String(classification || "")
+      .toLowerCase()
+      .trim();
 
-  try {
-    return await auth.currentUser
-      .getIdToken(true);
-  } catch (error) {
-    console.error(
-      "Error obteniendo token administrativo:",
-      error
+  const labels = {
+    cercana: "Muy cerca",
+    moderada: "Moderada",
+    considerable: "Considerable",
+    lejana: "Distancia alta",
+    no_disponible: "No disponible"
+  };
+
+  return (
+    labels[normalized] ||
+    labels.no_disponible
+  );
+}
+
+function getTransportCompatibilityClass(
+  status = ""
+) {
+  const classes = {
+    compatible:
+      "transport-compatibility transport-compatibility--compatible",
+
+    al_limite:
+      "transport-compatibility transport-compatibility--limit",
+
+    no_recomendado:
+      "transport-compatibility transport-compatibility--not-recommended",
+
+    no_disponible:
+      "transport-compatibility transport-compatibility--unknown"
+  };
+
+  return (
+    classes[status] ||
+    classes.no_disponible
+  );
+}
+
+function getTransportCompatibilityMessage(
+  candidate = {}
+) {
+  const compatibility =
+    candidate.compatibilidadTraslado || {};
+
+  const status =
+    compatibility.estado ||
+    candidate.compatibilidadGeografica ||
+    "no_disponible";
+
+  const estimated =
+    Number(
+      candidate.tiempoTrasladoEstimadoMin
     );
 
-    return "";
+  const maximum =
+    candidate.tiempoMaximoTraslado ||
+    "no indicado";
+
+  if (status === "compatible") {
+    return `✅ El traslado estimado de ${
+      Number.isFinite(estimated)
+        ? `${Math.round(estimated)} minutos`
+        : "tiempo disponible"
+    } está dentro del máximo aceptado por el candidato (${maximum}).`;
+  }
+
+  if (status === "al_limite") {
+    return `⚠️ El tiempo estimado está ligeramente por encima del máximo aceptado (${maximum}). Conviene confirmarlo con el candidato.`;
+  }
+
+  if (status === "no_recomendado") {
+    return `❌ El tiempo estimado supera considerablemente el máximo aceptado por el candidato (${maximum}).`;
+  }
+
+  return "No fue posible evaluar la compatibilidad del traslado.";
+}
+
+/* =========================
+   STATS
+========================= */
+function updateStats() {
+  const total = postulaciones.length;
+
+  const pendientes =
+    postulaciones.filter(
+      (item) =>
+        item.estadoSolicitud ===
+        "pendiente"
+    ).length;
+
+  const aprobados =
+    postulaciones.filter(
+      (item) =>
+        item.estadoSolicitud ===
+          "aprobado" ||
+        item.estadoSolicitud ===
+          "entrevista_agendada"
+    ).length;
+
+  const rechazados =
+    postulaciones.filter(
+      (item) =>
+        item.estadoSolicitud ===
+        "rechazado"
+    ).length;
+
+  const muyRecomendados =
+    postulaciones.filter(
+      (item) =>
+        item.nivelCompatibilidad ===
+        "muy_recomendado"
+    ).length;
+
+  const trasladoCompatible =
+    postulaciones.filter((item) => {
+      const estado =
+        item.compatibilidadTraslado
+          ?.estado ||
+        item.compatibilidadGeografica;
+
+      return estado === "compatible";
+    }).length;
+
+  const pendientesRevision =
+    postulaciones.filter((item) => {
+      return (
+        item.estadoSolicitud ===
+          "pendiente" &&
+        (
+          item.nivelCompatibilidad ===
+            "revisar" ||
+          item.nivelCompatibilidad ===
+            "baja_compatibilidad" ||
+          !Number.isFinite(
+            Number(
+              item.puntuacionCompatibilidad
+            )
+          )
+        )
+      );
+    }).length;
+
+  if (statTotal) {
+    statTotal.textContent = total;
+  }
+
+  if (statPendiente) {
+    statPendiente.textContent =
+      pendientes;
+  }
+
+  if (statAprobado) {
+    statAprobado.textContent =
+      aprobados;
+  }
+
+  if (statRechazado) {
+    statRechazado.textContent =
+      rechazados;
+  }
+
+  if (statMuyRecomendados) {
+    statMuyRecomendados.textContent =
+      muyRecomendados;
+  }
+
+  if (statTrasladoCompatible) {
+    statTrasladoCompatible.textContent =
+      trasladoCompatible;
+  }
+
+  if (statPendientesRevision) {
+    statPendientesRevision.textContent =
+      pendientesRevision;
   }
 }
 
-/* =========================================================
-   UTILIDADES
-========================================================= */
-
-function escapeHtml(
-  value = ""
-) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function normalizeText(
-  value = ""
-) {
-  return String(value)
+function normalizarBusqueda(texto = "") {
+  return String(texto)
     .normalize("NFD")
-    .replace(
-      /[\u0300-\u036f]/g,
-      ""
-    )
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
 }
 
-function formatDateTime(
-  dateValue
-) {
-  if (!dateValue) {
-    return "Sin fecha";
-  }
-
-  const date =
-    new Date(dateValue);
-
-  if (
-    Number.isNaN(
-      date.getTime()
-    )
-  ) {
-    return String(dateValue);
-  }
-
-  return new Intl.DateTimeFormat(
-    "es-MX",
-    {
-      dateStyle: "medium",
-      timeStyle: "short"
-    }
-  ).format(date);
-}
-
-function getTodayKey() {
-  const now =
-    new Date();
-
-  return [
-    now.getFullYear(),
-    String(
-      now.getMonth() + 1
-    ).padStart(2, "0"),
-    String(
-      now.getDate()
-    ).padStart(2, "0")
-  ].join("-");
-}
-
-function getCommunicationDateKey(
-  item = {}
+function getCandidateCompatibilityScore(
+  candidate = {}
 ) {
   const value =
-    item.fechaEnvio ||
-    item.fechaCreacion ||
-    item.fechaProgramada ||
-    "";
-
-  if (!value) {
-    return "";
-  }
-
-  const date =
-    new Date(value);
-
-  if (
-    Number.isNaN(
-      date.getTime()
-    )
-  ) {
-    return "";
-  }
-
-  return [
-    date.getFullYear(),
-    String(
-      date.getMonth() + 1
-    ).padStart(2, "0"),
-    String(
-      date.getDate()
-    ).padStart(2, "0")
-  ].join("-");
-}
-
-function scrollToSection(
-  element
-) {
-  element?.scrollIntoView({
-    behavior: "smooth",
-    block: "start"
-  });
-}
-
-/* =========================================================
-   VARIABLES DE VISTA PREVIA
-========================================================= */
-
-const PREVIEW_VARIABLES = {
-  nombre:
-    "Alejandro Ayala",
-
-  apellido:
-    "Ayala",
-
-  folio:
-    "1786031353628",
-
-  vacante:
-    "Auxiliar de Reclutamiento",
-
-  marca:
-    "GA Hospitality",
-
-  sucursal:
-    "Lombardo Toledano",
-
-  direccion:
-    "Av. Lombardo Toledano 1234, Chihuahua, México",
-
-  fecha:
-    "viernes, 7 de agosto de 2026",
-
-  hora:
-    "11:54 a. m.",
-
-  duracion:
-    "30 minutos",
-
-  modalidad:
-    "Presencial",
-
-  reclutador:
-    "Juan Carlos Martínez",
-
-  telefono:
-    "656 000 0000",
-
-  correo:
-    "reclutamiento@gahospitality.com",
-
-  googleMaps:
-    "https://maps.google.com",
-
-  empresa:
-    "Great American Hospitality"
-};
-
-function replaceTemplateVariables(
-  content = ""
-) {
-  let result =
-    String(content || "");
-
-  Object.entries(
-    PREVIEW_VARIABLES
-  ).forEach(
-    ([key, value]) => {
-      const expression =
-        new RegExp(
-          `{{\\s*${key}\\s*}}`,
-          "gi"
-        );
-
-      result =
-        result.replace(
-          expression,
-          value
-        );
-    }
-  );
-
-  return result;
-}
-
-/* =========================================================
-   MODAL
-========================================================= */
-
-function resetTemplateForm() {
-  plantillaSeleccionada =
-    null;
-
-  templateForm?.reset();
-
-  if (templateId) {
-    templateId.value = "";
-  }
-
-  if (templateModalTitle) {
-    templateModalTitle.textContent =
-      "Nueva plantilla";
-  }
-
-  if (templateChannel) {
-    templateChannel.value =
-      "email";
-  }
-
-  if (templateLanguage) {
-    templateLanguage.value =
-      "es";
-  }
-
-  if (templateType) {
-    templateType.value =
-      "postulacion_recibida";
-  }
-
-  if (templateSubject) {
-    templateSubject.value = "";
-  }
-
-  if (templateText) {
-    templateText.value = "";
-  }
-
-  if (templateHtml) {
-    templateHtml.value = "";
-  }
-
-  activeEditorField =
-    templateHtml;
-
-  updateTemplatePreview();
-}
-
-function openTemplateModal(
-  template = null
-) {
-  resetTemplateForm();
-
-  if (template) {
-    plantillaSeleccionada =
-      template;
-
-    if (templateModalTitle) {
-      templateModalTitle.textContent =
-        "Editar plantilla";
-    }
-
-    if (templateId) {
-      templateId.value =
-        template.id || "";
-    }
-
-    if (templateName) {
-      templateName.value =
-        template.nombre || "";
-    }
-
-    if (templateType) {
-      templateType.value =
-        template.tipo ||
-        template.id ||
-        "postulacion_recibida";
-    }
-
-    if (templateChannel) {
-      templateChannel.value =
-        template.canal ||
-        "email";
-    }
-
-    if (templateLanguage) {
-      templateLanguage.value =
-        template.idioma ||
-        "es";
-    }
-
-    if (templateSubject) {
-      templateSubject.value =
-        template.asunto || "";
-    }
-
-    if (templateText) {
-      templateText.value =
-        template.contenidoTexto ||
-        "";
-    }
-
-    if (templateHtml) {
-      templateHtml.value =
-        template.contenidoHtml ||
-        "";
-    }
-  }
-
-  updateTemplatePreview();
-
-  templateModal?.classList.remove(
-    "hidden"
-  );
-
-  document.body.style.overflow =
-    "hidden";
-
-  setTimeout(() => {
-    templateName?.focus();
-  }, 100);
-}
-
-function closeTemplateModal() {
-  templateModal?.classList.add(
-    "hidden"
-  );
-
-  document.body.style.overflow =
-    "";
-
-  resetTemplateForm();
-}
-
-/* =========================================================
-   VISTA PREVIA
-========================================================= */
-
-function updateTemplatePreview() {
-  if (previewSubject) {
-    previewSubject.textContent =
-      replaceTemplateVariables(
-        templateSubject?.value ||
-        "Asunto del correo"
-      );
-  }
-
-  if (!templatePreview) {
-    return;
-  }
-
-  const html =
-    templateHtml?.value.trim() ||
-    "";
-
-  const text =
-    templateText?.value.trim() ||
-    "";
-
-  if (html) {
-    templatePreview.innerHTML =
-      replaceTemplateVariables(
-        html
-      );
-
-    return;
-  }
-
-  if (text) {
-    templatePreview.innerHTML = `
-      <div class="email-preview__logo">
-        GA Hospitality
-      </div>
-
-      <div style="white-space:pre-wrap;line-height:1.7;">
-        ${escapeHtml(
-          replaceTemplateVariables(
-            text
-          )
-        )}
-      </div>
-    `;
-
-    return;
-  }
-
-  templatePreview.innerHTML = `
-    <div class="email-preview__logo">
-      GA Hospitality
-    </div>
-
-    <h2>
-      Hola Alejandro
-    </h2>
-
-    <p>
-      Aquí podrás revisar el contenido de la plantilla antes de guardarla.
-    </p>
-  `;
-}
-
-/* =========================================================
-   VARIABLES DINÁMICAS
-========================================================= */
-
-function insertVariableIntoField(
-  field,
-  variable
-) {
-  if (!field || !variable) {
-    return;
-  }
-
-  const start =
-    field.selectionStart ??
-    field.value.length;
-
-  const end =
-    field.selectionEnd ??
-    field.value.length;
-
-  const currentValue =
-    field.value;
-
-  field.value =
-    currentValue.slice(0, start) +
-    variable +
-    currentValue.slice(end);
-
-  const nextPosition =
-    start + variable.length;
-
-  field.focus();
-
-  field.setSelectionRange(
-    nextPosition,
-    nextPosition
-  );
-
-  updateTemplatePreview();
-}
-
-/* =========================================================
-   CARGA DE PLANTILLAS
-========================================================= */
-
-async function cargarPlantillas() {
-  try {
-    const response =
-      await fetch(
-        `${API_URL}/api/plantillas-comunicacion`,
-        {
-          headers:
-            authHeaders()
-        }
-      );
-
-    if (!response.ok) {
-      throw new Error(
-        "Ruta de plantillas todavía no disponible."
-      );
-    }
-
-    const data =
-      await response.json();
-
-    plantillas =
-      Array.isArray(data)
-        ? data
-        : Array.isArray(
-            data.plantillas
-          )
-          ? data.plantillas
-          : [];
-
-    if (!plantillas.length) {
-      plantillas =
-        [...DEFAULT_TEMPLATES];
-    }
-  } catch (error) {
-    console.warn(
-      "Se utilizarán plantillas iniciales:",
-      error.message
+    Number(
+      candidate
+        .puntuacionCompatibilidad
     );
 
-    plantillas =
-      [...DEFAULT_TEMPLATES];
-  }
-
-  renderPlantillas();
+  return Number.isFinite(value)
+    ? value
+    : null;
 }
 
-function renderPlantillas() {
-  if (!templatesGrid) {
-    return;
-  }
+function getCandidateDistance(
+  candidate = {}
+) {
+  const value =
+    Number(
+      candidate.distanciaSucursalKm
+    );
 
-  const templatesToRender =
-    plantillas.length
-      ? plantillas
-      : DEFAULT_TEMPLATES;
+  return Number.isFinite(value)
+    ? value
+    : null;
+}
 
-  templatesGrid.innerHTML =
-    templatesToRender
-      .map((template) => {
-        const statusClass =
-          template.activo === false
-            ? "template-status--inactive"
-            : "template-status--active";
+function getCandidateDate(
+  candidate = {}
+) {
+  const date =
+    new Date(
+      candidate.fechaRegistro || 0
+    );
 
-        const statusText =
-          template.activo === false
-            ? "Inactiva"
-            : "Activa";
+  return Number.isNaN(date.getTime())
+    ? 0
+    : date.getTime();
+}
 
-        const icon =
-          getTemplateIcon(
-            template.tipo ||
-            template.id
+function sortCandidates(
+  candidates = [],
+  sortValue = ""
+) {
+  const result = [...candidates];
+
+  switch (sortValue) {
+    case "compatibility_asc":
+      return result.sort((a, b) => {
+        const scoreA =
+          getCandidateCompatibilityScore(
+            a
           );
 
-        return `
-          <article
-            class="template-card"
-            data-template="${escapeHtml(
-              template.id
-            )}"
-          >
-            <div class="template-card__top">
-              <span class="template-card__icon">
-                ${icon}
-              </span>
+        const scoreB =
+          getCandidateCompatibilityScore(
+            b
+          );
 
-              <span class="template-status ${statusClass}">
-                ${statusText}
-              </span>
-            </div>
+        if (
+          scoreA === null &&
+          scoreB === null
+        ) {
+          return 0;
+        }
 
-            <h3>
-              ${escapeHtml(
-                template.nombre ||
-                "Plantilla"
-              )}
-            </h3>
+        if (scoreA === null) return 1;
+        if (scoreB === null) return -1;
 
-            <p>
-              ${escapeHtml(
-                getTemplateDescription(
-                  template.tipo ||
-                  template.id
-                )
-              )}
-            </p>
+        return scoreA - scoreB;
+      });
 
-            <div class="template-card__meta">
-              <span>
-                ${escapeHtml(
-                  getChannelLabel(
-                    template.canal
-                  )
-                )}
-              </span>
+    case "distance_asc":
+      return result.sort((a, b) => {
+        const distanceA =
+          getCandidateDistance(a);
 
-              <span>
-                ${template.idioma === "en"
-                  ? "Inglés"
-                  : "Español"}
-              </span>
-            </div>
+        const distanceB =
+          getCandidateDistance(b);
 
-            <button
-              class="btn btn--secondary template-edit-btn"
-              type="button"
-              data-template-id="${escapeHtml(
-                template.id
-              )}"
-            >
-              Editar plantilla
-            </button>
-          </article>
-        `;
-      })
-      .join("");
+        if (
+          distanceA === null &&
+          distanceB === null
+        ) {
+          return 0;
+        }
 
-  bindTemplateCardEvents();
+        if (distanceA === null) return 1;
+        if (distanceB === null) return -1;
+
+        return distanceA - distanceB;
+      });
+
+    case "date_asc":
+      return result.sort(
+        (a, b) =>
+          getCandidateDate(a) -
+          getCandidateDate(b)
+      );
+
+    case "name_asc":
+      return result.sort((a, b) =>
+        String(a.nombre || "")
+          .localeCompare(
+            String(b.nombre || ""),
+            "es",
+            {
+              sensitivity: "base"
+            }
+          )
+      );
+
+    case "date_desc":
+      return result.sort(
+        (a, b) =>
+          getCandidateDate(b) -
+          getCandidateDate(a)
+      );
+
+    case "compatibility_desc":
+    default:
+      return result.sort((a, b) => {
+        const scoreA =
+          getCandidateCompatibilityScore(
+            a
+          );
+
+        const scoreB =
+          getCandidateCompatibilityScore(
+            b
+          );
+
+        if (
+          scoreA === null &&
+          scoreB === null
+        ) {
+          return (
+            getCandidateDate(b) -
+            getCandidateDate(a)
+          );
+        }
+
+        if (scoreA === null) return 1;
+        if (scoreB === null) return -1;
+
+        return scoreB - scoreA;
+      });
+  }
 }
 
-function getTemplateIcon(
-  type = ""
-) {
-  const icons = {
-    postulacion_recibida:
-      "📥",
 
-    entrevista_programada:
-      "📅",
+function getPostulacionesFiltradas() {
+  const search =
+    normalizarBusqueda(
+      candidateSearch?.value || ""
+    );
 
-    entrevista_reagendada:
-      "🔄",
+  const status =
+    candidateStatusFilter?.value || "";
 
-    recordatorio_entrevista:
-      "⏰",
+  const tipo =
+    candidateTypeFilter?.value || "";
 
-    candidato_aprobado:
-      "✅",
+  const compatibility =
+    candidateCompatibilityFilter
+      ?.value || "";
 
-    candidato_no_seleccionado:
-      "💬"
-  };
+  const transport =
+    candidateTransportFilter
+      ?.value || "";
 
-  return icons[type] || "📧";
+  const sort =
+    candidateSort?.value ||
+    "compatibility_desc";
+
+  const filtered =
+    postulaciones.filter(
+      (postulacion) => {
+        const contenido =
+          normalizarBusqueda(`
+            ${postulacion.nombre || ""}
+            ${postulacion.vacanteTitulo || ""}
+            ${postulacion.puestoInteres || ""}
+            ${postulacion.ciudad || ""}
+            ${postulacion.sucursal || ""}
+            ${postulacion.grupoSeleccionado || ""}
+            ${postulacion.correo || ""}
+            ${postulacion.telefono || ""}
+            ${postulacion.codigoPostal || ""}
+            ${postulacion.medioTransporte || ""}
+          `);
+
+        const coincideBusqueda =
+          !search ||
+          contenido.includes(search);
+
+        const coincideEstado =
+          !status ||
+          postulacion
+            .estadoSolicitud ===
+            status;
+
+        const coincideTipo =
+          !tipo ||
+          postulacion.tipoVacante ===
+            tipo;
+
+        const score =
+          getCandidateCompatibilityScore(
+            postulacion
+          );
+
+        const coincideCompatibilidad =
+          !compatibility ||
+          (
+            compatibility ===
+              "sin_evaluar"
+              ? score === null
+              : postulacion
+                  .nivelCompatibilidad ===
+                compatibility
+          );
+
+        const estadoTraslado =
+          postulacion
+            .compatibilidadTraslado
+            ?.estado ||
+          postulacion
+            .compatibilidadGeografica ||
+          "no_disponible";
+
+        const coincideTraslado =
+          !transport ||
+          estadoTraslado === transport;
+
+        return (
+          coincideBusqueda &&
+          coincideEstado &&
+          coincideTipo &&
+          coincideCompatibilidad &&
+          coincideTraslado
+        );
+      }
+    );
+
+  return sortCandidates(
+    filtered,
+    sort
+  );
 }
 
-function getTemplateDescription(
-  type = ""
+function updateCandidateResultsSummary(
+  filteredCandidates = []
 ) {
-  const descriptions = {
-    postulacion_recibida:
-      "Confirmación inmediata después de enviar una solicitud.",
+  const total =
+    filteredCandidates.length;
 
-    entrevista_programada:
-      "Fecha, horario, ubicación, entrevistador e instrucciones de llegada.",
+  if (candidateResultsCount) {
+    candidateResultsCount.textContent =
+      `${total} ${
+        total === 1
+          ? "candidato encontrado"
+          : "candidatos encontrados"
+      }`;
+  }
 
-    entrevista_reagendada:
-      "Notifica automáticamente la nueva fecha y el nuevo horario.",
+  const activeFilters = [];
 
-    recordatorio_entrevista:
-      "Recordatorio previo con mapa, horario e indicaciones importantes.",
+  if (candidateSearch?.value.trim()) {
+    activeFilters.push(
+      `Búsqueda: "${candidateSearch.value.trim()}"`
+    );
+  }
 
-    candidato_aprobado:
-      "Comunicación para avanzar a contratación o a la siguiente etapa.",
+  if (
+    candidateStatusFilter?.value
+  ) {
+    activeFilters.push(
+      `Estatus: ${
+        candidateStatusFilter
+          .selectedOptions[0]
+          ?.textContent.trim()
+      }`
+    );
+  }
 
-    candidato_no_seleccionado:
-      "Mensaje respetuoso y profesional para cerrar el proceso."
+  if (candidateTypeFilter?.value) {
+    activeFilters.push(
+      `Tipo: ${
+        candidateTypeFilter
+          .selectedOptions[0]
+          ?.textContent.trim()
+      }`
+    );
+  }
+
+  if (
+    candidateCompatibilityFilter
+      ?.value
+  ) {
+    activeFilters.push(
+      `Compatibilidad: ${
+        candidateCompatibilityFilter
+          .selectedOptions[0]
+          ?.textContent.trim()
+      }`
+    );
+  }
+
+  if (
+    candidateTransportFilter?.value
+  ) {
+    activeFilters.push(
+      `Traslado: ${
+        candidateTransportFilter
+          .selectedOptions[0]
+          ?.textContent.trim()
+      }`
+    );
+  }
+
+  if (candidateActiveFilters) {
+    candidateActiveFilters.textContent =
+      activeFilters.length
+        ? activeFilters.join(" · ")
+        : "Sin filtros adicionales";
+  }
+}
+
+
+
+function getIniciales(nombre = "") {
+  const partes = String(nombre)
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (!partes.length) return "RH";
+
+  return partes
+    .slice(0, 2)
+    .map((parte) => parte.charAt(0).toUpperCase())
+    .join("");
+}
+
+function formatInterviewDate(fecha = "", hora = "") {
+  if (!fecha) {
+    return "Sin entrevista";
+  }
+
+  const partes = fecha.split("-");
+
+  if (partes.length !== 3) {
+    return `${fecha} ${hora}`.trim();
+  }
+
+  const [year, month, day] = partes;
+
+  return `${day}/${month}/${year}${hora ? ` · ${hora}` : ""}`;
+}
+
+
+/* =========================
+   COMPATIBILIDAD GENERAL
+========================= */
+
+function getCompatibilityLevelClass(
+  level = ""
+) {
+  const classes = {
+    muy_recomendado:
+      "compatibility-level compatibility-level--excellent",
+
+    recomendado:
+      "compatibility-level compatibility-level--good",
+
+    revisar:
+      "compatibility-level compatibility-level--review",
+
+    baja_compatibilidad:
+      "compatibility-level compatibility-level--low"
   };
 
   return (
-    descriptions[type] ||
-    "Plantilla reutilizable del Communication Center."
+    classes[level] ||
+    "compatibility-level compatibility-level--unknown"
   );
 }
 
-function getChannelLabel(
-  channel = ""
+function getCompatibilityCircleClass(
+  score
 ) {
-  if (channel === "whatsapp") {
-    return "WhatsApp";
+  const value = Number(score);
+
+  if (!Number.isFinite(value)) {
+    return "candidate-score-circle candidate-score-circle--unknown";
   }
 
-  if (channel === "ambos") {
-    return "Email y WhatsApp";
+  if (value >= 85) {
+    return "candidate-score-circle candidate-score-circle--excellent";
   }
 
-  return "Email";
+  if (value >= 70) {
+    return "candidate-score-circle candidate-score-circle--good";
+  }
+
+  if (value >= 55) {
+    return "candidate-score-circle candidate-score-circle--review";
+  }
+
+  return "candidate-score-circle candidate-score-circle--low";
 }
 
-function bindTemplateCardEvents() {
-  document
-    .querySelectorAll(
-      ".template-edit-btn"
-    )
-    .forEach((button) => {
-      button.addEventListener(
-        "click",
-        () => {
-          const id =
-            button.dataset
-              .templateId;
-
-          const template =
-            plantillas.find(
-              (item) =>
-                item.id === id
-            ) ||
-            DEFAULT_TEMPLATES.find(
-              (item) =>
-                item.id === id
-            );
-
-          openTemplateModal(
-            template || null
-          );
-        }
-      );
-    });
-}
-
-/* =========================================================
-   GUARDAR PLANTILLA
-========================================================= */
-
-function buildTemplatePayload() {
-  const currentId =
-    templateId?.value.trim();
-
-  return {
-    id:
-      currentId ||
-      `tpl-${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2, 7)}`,
-
-    nombre:
-      templateName?.value.trim() ||
-      "",
-
-    tipo:
-      templateType?.value ||
-      "postulacion_recibida",
-
-    canal:
-      templateChannel?.value ||
-      "email",
-
-    idioma:
-      templateLanguage?.value ||
-      "es",
-
-    asunto:
-      templateSubject?.value.trim() ||
-      "",
-
-    contenidoTexto:
-      templateText?.value ||
-      "",
-
-    contenidoHtml:
-      templateHtml?.value ||
-      "",
-
-    activo:
-      plantillaSeleccionada
-        ?.activo !== false,
-
-    fechaActualizacion:
-      new Date().toISOString()
-  };
-}
-
-function validateTemplatePayload(
-  payload
+function formatComponentScore(
+  value,
+  maximum
 ) {
-  if (!payload.nombre) {
-    return "Ingresa el nombre de la plantilla.";
+  const score = Number(value);
+
+  if (!Number.isFinite(score)) {
+    return "No evaluado";
   }
 
-  if (!payload.asunto) {
-    return "Ingresa el asunto del correo.";
-  }
-
-  if (
-    !payload.contenidoTexto.trim() &&
-    !payload.contenidoHtml.trim()
-  ) {
-    return "Agrega contenido de texto o contenido HTML.";
-  }
-
-  return "";
+  return `${score.toFixed(1)} / ${maximum}`;
 }
 
-async function guardarPlantilla() {
-  const payload =
-    buildTemplatePayload();
+function renderEvaluationList(
+  element,
+  items,
+  emptyMessage
+) {
+  if (!element) return;
 
-  const validationError =
-    validateTemplatePayload(
-      payload
-    );
+  const values =
+    Array.isArray(items)
+      ? items.filter(Boolean)
+      : [];
 
-  if (validationError) {
-    window.alert(
-      validationError
-    );
-
+  if (!values.length) {
+    element.innerHTML =
+      `<li>${emptyMessage}</li>`;
     return;
   }
 
-  const isEdit =
-    Boolean(
-      plantillaSeleccionada?.id
-    );
+  element.innerHTML = values
+    .map(
+      (item) =>
+        `<li>${item}</li>`
+    )
+    .join("");
+}
 
-  if (saveTemplateBtn) {
-    saveTemplateBtn.disabled =
-      true;
+/* =========================
+   SELECCIÓN Y ELIMINACIÓN
+========================= */
 
-    saveTemplateBtn.textContent =
-      isEdit
-        ? "Actualizando..."
-        : "Guardando...";
+function updateCandidateSelectionUi() {
+  const total =
+    selectedCandidateIds.size;
+
+  if (selectedCandidatesCount) {
+    selectedCandidatesCount.textContent =
+      `${total} ${
+        total === 1
+          ? "seleccionado"
+          : "seleccionados"
+      }`;
   }
 
-  try {
-    const url =
-      isEdit
-        ? `${API_URL}/api/plantillas-comunicacion/${encodeURIComponent(
-            payload.id
-          )}`
-        : `${API_URL}/api/plantillas-comunicacion`;
+  if (deleteSelectedCandidatesBtn) {
+    deleteSelectedCandidatesBtn.disabled =
+      total === 0;
 
-    const method =
-      isEdit
-        ? "PUT"
-        : "POST";
+    deleteSelectedCandidatesBtn.textContent =
+      total === 1
+        ? "🗑 Eliminar seleccionado"
+        : `🗑 Eliminar seleccionados${
+            total > 1
+              ? ` (${total})`
+              : ""
+          }`;
+  }
 
-    const response =
-      await fetch(
-        url,
-        {
-          method,
+  const candidatosVisibles =
+    getPostulacionesFiltradas();
 
-          headers:
-            authHeaders({
-              "Content-Type":
-                "application/json"
-            }),
-
-          body:
-            JSON.stringify(
-              payload
-            )
-        }
-      );
-
-    if (!response.ok) {
-      throw new Error(
-        "El backend de plantillas todavía no está conectado."
-      );
-    }
-
-    await response.json();
-
-    await cargarPlantillas();
-
-    closeTemplateModal();
-
-    window.alert(
-      isEdit
-        ? "Plantilla actualizada correctamente."
-        : "Plantilla creada correctamente."
-    );
-  } catch (error) {
-    console.warn(
-      "Guardado temporal en navegador:",
-      error.message
+  const idsVisibles =
+    candidatosVisibles.map(
+      (item) =>
+        String(item.id)
     );
 
-    const index =
-      plantillas.findIndex(
-        (item) =>
-          item.id === payload.id
-      );
+  const seleccionadosVisibles =
+    idsVisibles.filter(
+      (id) =>
+        selectedCandidateIds.has(id)
+    ).length;
 
-    if (index >= 0) {
-      plantillas[index] = {
-        ...plantillas[index],
-        ...payload
-      };
-    } else {
-      plantillas.unshift(
-        payload
-      );
-    }
+  if (selectAllCandidates) {
+    selectAllCandidates.checked =
+      idsVisibles.length > 0 &&
+      seleccionadosVisibles ===
+        idsVisibles.length;
 
-    /*
-     * Persistencia provisional mientras
-     * se crean las rutas del backend.
-     */
-    localStorage.setItem(
-      "communication_center_templates",
-      JSON.stringify(
-        plantillas
-      )
-    );
-
-    renderPlantillas();
-    closeTemplateModal();
-
-    window.alert(
-      "La plantilla quedó guardada temporalmente en este navegador. En el siguiente bloque conectaremos las rutas del servidor."
-    );
-  } finally {
-    if (saveTemplateBtn) {
-      saveTemplateBtn.disabled =
-        false;
-
-      saveTemplateBtn.textContent =
-        "Guardar plantilla";
-    }
+    selectAllCandidates.indeterminate =
+      seleccionadosVisibles > 0 &&
+      seleccionadosVisibles <
+        idsVisibles.length;
   }
 }
 
-function cargarPlantillasLocales() {
-  try {
-    const saved =
-      localStorage.getItem(
-        "communication_center_templates"
-      );
+function toggleCandidateSelection(
+  candidateId,
+  checked
+) {
+  const id =
+    String(candidateId || "");
 
-    if (!saved) {
-      return [];
+  if (!id) {
+    return;
+  }
+
+  if (checked) {
+    selectedCandidateIds.add(id);
+  } else {
+    selectedCandidateIds.delete(id);
+  }
+
+  updateCandidateSelectionUi();
+}
+
+async function eliminarPostulacionesSeleccionadas() {
+  const ids =
+    Array.from(
+      selectedCandidateIds
+    );
+
+  if (!ids.length) {
+    return;
+  }
+
+  const cantidad =
+    ids.length;
+
+  const mensaje =
+    cantidad === 1
+      ? "¿Deseas eliminar permanentemente la postulación seleccionada?"
+      : `¿Deseas eliminar permanentemente las ${cantidad} postulaciones seleccionadas?`;
+
+  const confirmado =
+    window.confirm(
+      `${mensaje}\n\nEsta acción no se puede deshacer.`
+    );
+
+  if (!confirmado) {
+    return;
+  }
+
+  if (deleteSelectedCandidatesBtn) {
+    deleteSelectedCandidatesBtn.disabled =
+      true;
+
+    deleteSelectedCandidatesBtn.textContent =
+      "Eliminando...";
+  }
+
+  try {
+    let eliminadas =
+      0;
+
+    const errores =
+      [];
+
+    for (const id of ids) {
+      try {
+        const response =
+          await fetch(
+            `${API_URL}/api/postulaciones/${encodeURIComponent(
+              id
+            )}`,
+            {
+              method:
+                "DELETE",
+
+              headers:
+                authHeaders()
+            }
+          );
+
+        const data =
+          await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data.error ||
+            "No fue posible eliminar la postulación."
+          );
+        }
+
+        eliminadas += 1;
+      } catch (error) {
+        errores.push({
+          id,
+          mensaje:
+            error.message
+        });
+      }
     }
 
-    const parsed =
-      JSON.parse(saved);
+    selectedCandidateIds.clear();
 
-    return Array.isArray(parsed)
-      ? parsed
-      : [];
+    sessionStorage.removeItem(
+      DASHBOARD_CACHE_KEY
+    );
+
+    await cargarPostulaciones(
+      true
+    );
+
+    if (errores.length) {
+      setStatus(
+        `⚠️ Se eliminaron ${eliminadas} postulaciones, pero ${errores.length} no pudieron eliminarse.`
+      );
+    } else {
+      setStatus(
+        `✅ ${
+          eliminadas === 1
+            ? "Postulación eliminada"
+            : `${eliminadas} postulaciones eliminadas`
+        } correctamente.`
+      );
+    }
   } catch (error) {
     console.error(
-      "Error leyendo plantillas locales:",
+      "Error eliminando postulaciones:",
       error
     );
 
-    return [];
+    setStatus(
+      `⚠️ ${
+        error.message ||
+        "No fue posible eliminar las postulaciones."
+      }`
+    );
+  } finally {
+    updateCandidateSelectionUi();
   }
 }
 
-/* =========================================================
-   COMUNICACIONES
-========================================================= */
+/* =========================
+   RENDER POSTULACIONES
+========================= */
+function renderPostulaciones() {
+  if (!postulacionesList) return;
 
-async function cargarComunicaciones() {
-  if (communicationsList) {
-    communicationsList.innerHTML = `
-      <div class="communications-loading">
-        Cargando comunicaciones...
+  postulacionesList.innerHTML = "";
+
+  const data = getPostulacionesFiltradas();
+  updateCandidateResultsSummary(data);
+
+  if (!data.length) {
+    postulacionesList.innerHTML = `
+      <div class="candidate-empty">
+        <div class="candidate-empty__icon">🔎</div>
+        <h3>No se encontraron candidatos</h3>
+        <p>
+          Intenta modificar los filtros o actualizar las postulaciones.
+        </p>
       </div>
     `;
+
+    updateStats();
+    updateCandidateSelectionUi();
+    return;
   }
 
-  try {
-    const response =
-      await fetch(
-        `${API_URL}/api/comunicaciones`,
-        {
-          headers:
-            authHeaders()
-        }
-      );
+  const fragment = document.createDocumentFragment();
 
-    const data =
-      await response.json();
+  data.forEach((postulacion) => {
+    const card = document.createElement("article");
 
-    if (!response.ok) {
-      throw new Error(
-        data.error ||
-        "No fue posible cargar las comunicaciones."
-      );
-    }
-
-    comunicaciones =
-      Array.isArray(data)
-        ? data
-        : Array.isArray(
-            data.comunicaciones
-          )
-          ? data.comunicaciones
-          : [];
-  } catch (error) {
-    console.warn(
-      "Communication Center sin historial conectado:",
-      error.message
+    card.className = "dashboard-card";
+    card.dataset.id = postulacion.id;
+    card.tabIndex = 0;
+    card.setAttribute("role", "button");
+    card.setAttribute(
+      "aria-label",
+      `Ver información de ${postulacion.nombre || "candidato"}`
     );
 
-    comunicaciones = [];
+    const puesto =
+      postulacion.vacanteTitulo ||
+      postulacion.puestoInteres ||
+      "Sin puesto asignado";
+
+    const sucursal =
+      postulacion.sucursal ||
+      postulacion.sucursalNombre ||
+      "Sin sucursal";
+
+    const marca =
+      postulacion.grupoSeleccionado ||
+      "GA Hospitality";
+
+    const estado =
+      postulacion.estadoSolicitud ||
+      "pendiente";
+
+    const entrevista = formatInterviewDate(
+      postulacion.fechaEntrevista,
+      postulacion.horaEntrevista
+    );
+    const distanciaResumen =
+  Number.isFinite(
+    Number(
+      postulacion.distanciaSucursalKm
+    )
+  )
+    ? `${Number(
+        postulacion.distanciaSucursalKm
+      ).toFixed(1)} km`
+    : "Distancia no disponible";
+    
+    const compatibilityScore =
+  Number(
+    postulacion.puntuacionCompatibilidad
+  );
+
+const compatibilityAvailable =
+  Number.isFinite(
+    compatibilityScore
+  );
+
+const compatibilityText =
+  compatibilityAvailable
+    ? `${Math.round(
+        compatibilityScore
+      )}%`
+    : "Sin evaluar";
+
+const compatibilityLabel =
+  postulacion
+    .etiquetaNivelCompatibilidad ||
+  "Compatibilidad no disponible";
+
+    card.innerHTML = `
+  <div class="candidate-select">
+    <input
+      class="candidate-checkbox"
+      type="checkbox"
+      data-candidate-id="${postulacion.id}"
+      ${
+        selectedCandidateIds.has(
+          String(postulacion.id)
+        )
+          ? "checked"
+          : ""
+      }
+      aria-label="Seleccionar ${postulacion.nombre || "candidato"}"
+    />
+  </div>
+
+  <div class="candidate-primary">
+    <div class="candidate-avatar">
+      ${getIniciales(postulacion.nombre)}
+    </div>
+
+    <div class="candidate-identity">
+      <h3>${postulacion.nombre || "Sin nombre"}</h3>
+
+      <p>
+        ${postulacion.correo || postulacion.telefono || "Sin contacto"}
+      </p>
+    </div>
+  </div>
+
+  <div class="candidate-position">
+    <strong>${puesto}</strong>
+
+    <span>
+      ${marca} · ${sucursal}
+    </span>
+
+    <small>
+      ${postulacion.ciudad || "Ciudad no registrada"}
+    </small>
+
+    <small class="candidate-distance-summary">
+      📍 ${distanciaResumen}
+    </small>
+  </div>
+
+  <div class="candidate-process">
+    <span class="${getEstadoClass(estado)}">
+      ${estado.replaceAll("_", " ")}
+    </span>
+
+    <div class="candidate-compatibility-mini">
+      <strong>
+        ${compatibilityText}
+      </strong>
+
+      <span>
+        ${compatibilityLabel}
+      </span>
+    </div>
+
+    <small>
+      ${entrevista}
+    </small>
+  </div>
+
+  <div class="candidate-actions">
+    <button
+      class="btn btn--secondary view-btn"
+      type="button"
+      data-id="${postulacion.id}"
+    >
+      Ver
+    </button>
+  </div>
+`;
+    
+    const checkbox =
+  card.querySelector(
+    ".candidate-checkbox"
+  );
+
+checkbox?.addEventListener(
+  "click",
+  (event) => {
+    event.stopPropagation();
   }
+);
 
-  renderComunicaciones();
-  actualizarEstadisticas();
-}
-
-function renderComunicaciones() {
-  if (!communicationsList) {
-    return;
+checkbox?.addEventListener(
+  "change",
+  () => {
+    toggleCandidateSelection(
+      postulacion.id,
+      checkbox.checked
+    );
   }
+);
 
-  if (!comunicaciones.length) {
-    communicationsList.innerHTML = `
-      <div class="communications-empty">
-        Aún no hay comunicaciones registradas.
-      </div>
-    `;
+    card.addEventListener(
+  "click",
+  (event) => {
+    if (
+      event.target.closest(
+        "button, input, label"
+      )
+    ) {
+      return;
+    }
 
-    return;
+    openCandidateModal(
+      postulacion
+    );
   }
+);
 
-  communicationsList.innerHTML =
-    comunicaciones
-      .map((item) => {
-        const state =
-          normalizeText(
-            item.estado ||
-            "creado"
-          )
-            .replaceAll(
-              " ",
-              "_"
-            );
+    card.addEventListener("keydown", (event) => {
+      if (
+        event.key === "Enter" ||
+        event.key === " "
+      ) {
+        event.preventDefault();
+        openCandidateModal(postulacion);
+      }
+    });
 
-        const channel =
-          normalizeText(
-            item.canal ||
-            "email"
+    fragment.appendChild(card);
+  });
+
+  postulacionesList.appendChild(fragment);
+
+  document
+    .querySelectorAll(".view-btn")
+    .forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.dataset.id;
+
+        const candidate =
+          postulaciones.find(
+            (item) => item.id === id
           );
 
-        return `
-          <article class="communication-row">
-            <div class="communication-row__candidate">
-              <strong>
-                ${escapeHtml(
-                  item.candidatoNombre ||
-                  item.nombreCandidato ||
-                  "Candidato"
-                )}
-              </strong>
+        if (candidate) {
+          openCandidateModal(candidate);
+        }
+      });
+    });
 
-              <small>
-                ${escapeHtml(
-                  item.destinatario ||
-                  "Sin destinatario"
-                )}
-              </small>
-            </div>
-
-            <span class="communication-row__text">
-              ${escapeHtml(
-                item.tipo ||
-                "Comunicación"
-              )}
-            </span>
-
-            <span class="communication-channel ${
-              channel === "whatsapp"
-                ? "communication-channel--whatsapp"
-                : ""
-            }">
-              ${escapeHtml(
-                getChannelLabel(
-                  channel
-                )
-              )}
-            </span>
-
-            <span class="communication-state communication-state--${escapeHtml(
-              state
-            )}">
-              ${escapeHtml(
-                String(
-                  item.estado ||
-                  "creado"
-                ).replaceAll(
-                  "_",
-                  " "
-                )
-              )}
-            </span>
-
-            <span class="communication-row__text">
-              ${escapeHtml(
-                formatDateTime(
-                  item.fechaEnvio ||
-                  item.fechaCreacion ||
-                  item.fechaProgramada
-                )
-              )}
-            </span>
-
-            <button
-              class="btn btn--secondary communication-row__action"
-              type="button"
-              data-communication-id="${escapeHtml(
-                item.id
-              )}"
-            >
-              Ver
-            </button>
-          </article>
-        `;
-      })
-      .join("");
+  updateStats();
 }
+/* =========================
+   MODAL CANDIDATO
+========================= */
 
-/* =========================================================
-   ESTADÍSTICAS
-========================================================= */
+function openCandidateModal(candidate) {
+  selectedCandidate = candidate;
 
-function actualizarEstadisticas() {
-  const today =
-    getTodayKey();
+  modalNombre.textContent =
+    candidate.nombre || "Sin nombre";
 
-  const sentStates = [
-    "enviado",
-    "entregado",
-    "abierto"
-  ];
+  modalEstado.textContent =
+    `Estado: ${
+      candidate.estadoSolicitud ||
+      "pendiente"
+    }`;
 
-  const deliveredStates = [
-    "entregado",
-    "abierto"
-  ];
+  modalCiudad.textContent =
+    candidate.ciudad || "-";
 
-  const sentToday =
-    comunicaciones.filter(
-      (item) =>
-        sentStates.includes(
-          normalizeText(
-            item.estado
-          )
-        ) &&
-        getCommunicationDateKey(
-          item
-        ) === today
-    ).length;
+  modalSucursal.textContent =
+    candidate.sucursal ||
+    candidate.sucursalNombre ||
+    candidate.sucursalId ||
+    "-";
 
-  const pending =
-    comunicaciones.filter(
-      (item) =>
-        [
-          "pendiente",
-          "procesando"
-        ].includes(
-          normalizeText(
-            item.estado
-          )
-        )
-    ).length;
+  modalPuesto.textContent =
+    candidate.vacanteTitulo ||
+    candidate.puestoInteres ||
+    "-";
 
-  const errors =
-    comunicaciones.filter(
-      (item) =>
-        normalizeText(
-          item.estado
-        ) === "error"
-    ).length;
+  modalEscolaridad.textContent =
+    candidate.escolaridad ||
+    "No solicitada";
 
-  const sentTotal =
-    comunicaciones.filter(
-      (item) =>
-        sentStates.includes(
-          normalizeText(
-            item.estado
-          )
-        )
-    ).length;
-
-  const deliveredTotal =
-    comunicaciones.filter(
-      (item) =>
-        deliveredStates.includes(
-          normalizeText(
-            item.estado
-          )
-        )
-    ).length;
-
-  const deliveryRate =
-    sentTotal
-      ? Math.round(
-          (
-            deliveredTotal /
-            sentTotal
-          ) * 100
-        )
-      : 0;
-
-  if (statSentToday) {
-    statSentToday.textContent =
-      String(sentToday);
-  }
-
-  if (statPending) {
-    statPending.textContent =
-      String(pending);
-  }
-
-  if (statErrors) {
-    statErrors.textContent =
-      String(errors);
-  }
-
-  if (statDeliveryRate) {
-    statDeliveryRate.textContent =
-      `${deliveryRate}%`;
-  }
-}
-
-/* =========================================================
-   ENVÍO DE PRUEBA — PREPARACIÓN
-========================================================= */
-
-function solicitarCorreoPrueba() {
-  const email =
-    window.prompt(
-      "Ingresa el correo donde deseas recibir la prueba:"
+  modalFecha.textContent =
+    formatFecha(
+      candidate.fechaRegistro
     );
 
-  if (!email) {
-    return;
+  modalDireccion.textContent =
+    candidate.direccion ||
+    candidate.sucursalDireccion ||
+    "No registrada";
+
+  modalExperiencia.textContent =
+    candidate.experiencia ||
+    "No proporcionada";
+
+  modalHabilidades.textContent =
+    candidate.habilidades ||
+    "No proporcionadas";
+
+  /* Ubicación y transporte */
+
+  if (modalCodigoPostal) {
+    modalCodigoPostal.textContent =
+      candidate.codigoPostal ||
+      "No proporcionado";
   }
 
-  const cleanEmail =
-    email.trim();
-
-  const validEmail =
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      .test(cleanEmail);
-
-  if (!validEmail) {
-    window.alert(
-      "Ingresa un correo electrónico válido."
-    );
-
-    return;
+  if (modalMedioTransporte) {
+    modalMedioTransporte.textContent =
+      candidate.medioTransporte ||
+      "No proporcionado";
   }
 
-  window.alert(
-    `Correo de prueba preparado para ${cleanEmail}. En el siguiente bloque conectaremos el proveedor real de correo.`
-  );
-}
+  if (modalVehiculoPropio) {
+    modalVehiculoPropio.textContent =
+      candidate.vehiculoPropio ||
+      "No proporcionado";
+  }
 
-/* =========================================================
-   EVENTOS
-========================================================= */
+  if (modalTiempoMaximoTraslado) {
+    modalTiempoMaximoTraslado.textContent =
+      candidate.tiempoMaximoTraslado ||
+      "No proporcionado";
+  }
 
-function bindEvents() {
-  newTemplateBtn?.addEventListener(
-    "click",
-    () =>
-      openTemplateModal()
-  );
-
-  quickNewTemplateBtn?.addEventListener(
-    "click",
-    () =>
-      openTemplateModal()
-  );
-
-  sendTestEmailBtn?.addEventListener(
-    "click",
-    solicitarCorreoPrueba
-  );
-
-  quickSendTestBtn?.addEventListener(
-    "click",
-    solicitarCorreoPrueba
-  );
-
-  quickHistoryBtn?.addEventListener(
-    "click",
-    () =>
-      scrollToSection(
-        communicationsList
-          ?.closest(
-            ".communications-card"
-          )
-      )
-  );
-
-  quickAutomationBtn?.addEventListener(
-    "click",
-    () => {
-      window.alert(
-        "El módulo de automatizaciones se agregará después de conectar las plantillas y los correos."
+  if (modalDistanciaSucursal) {
+    modalDistanciaSucursal.textContent =
+      formatDistance(
+        candidate.distanciaSucursalKm
       );
+  }
+
+  if (modalTiempoEstimado) {
+    modalTiempoEstimado.textContent =
+      formatTravelTime(
+        candidate.tiempoTrasladoEstimadoMin
+      );
+  }
+
+  if (modalEtiquetaDistancia) {
+    modalEtiquetaDistancia.textContent =
+      candidate.etiquetaDistancia ||
+      "Distancia no disponible";
+  }
+
+  if (modalDistanciaBadge) {
+    modalDistanciaBadge.className =
+      getDistanceBadgeClass(
+        candidate.clasificacionDistancia
+      );
+
+    modalDistanciaBadge.textContent =
+      getDistanceBadgeText(
+        candidate.clasificacionDistancia
+      );
+    const compatibilidad =
+  candidate.compatibilidadTraslado || {};
+
+const estadoCompatibilidad =
+  compatibilidad.estado ||
+  candidate.compatibilidadGeografica ||
+  "no_disponible";
+
+if (modalCompatibilidadTraslado) {
+  modalCompatibilidadTraslado.textContent =
+    compatibilidad.etiqueta ||
+    candidate.etiquetaCompatibilidadGeografica ||
+    "Compatibilidad no disponible";
+}
+    const compatibilityScore =
+  Number(
+    candidate.puntuacionCompatibilidad
+  );
+
+const compatibilityLevel =
+  candidate.nivelCompatibilidad || "";
+
+const compatibilityBreakdown =
+  candidate.desgloseCompatibilidad || {};
+
+if (modalCompatibilityScoreValue) {
+  modalCompatibilityScoreValue.textContent =
+    Number.isFinite(compatibilityScore)
+      ? `${Math.round(
+          compatibilityScore
+        )}%`
+      : "-";
+}
+
+if (modalCompatibilityScore) {
+  modalCompatibilityScore.className =
+    getCompatibilityCircleClass(
+      compatibilityScore
+    );
+}
+
+if (modalCompatibilityLevel) {
+  modalCompatibilityLevel.className =
+    getCompatibilityLevelClass(
+      compatibilityLevel
+    );
+
+  modalCompatibilityLevel.textContent =
+    candidate
+      .etiquetaNivelCompatibilidad ||
+    "Compatibilidad no disponible";
+}
+
+if (modalScoreCv) {
+  modalScoreCv.textContent =
+    formatComponentScore(
+      compatibilityBreakdown.cv,
+      35
+    );
+}
+
+if (modalScoreExperience) {
+  modalScoreExperience.textContent =
+    formatComponentScore(
+      compatibilityBreakdown.experiencia,
+      20
+    );
+}
+
+if (modalScoreAvailability) {
+  modalScoreAvailability.textContent =
+    formatComponentScore(
+      compatibilityBreakdown.disponibilidad,
+      15
+    );
+}
+
+if (modalScoreGeography) {
+  modalScoreGeography.textContent =
+    formatComponentScore(
+      compatibilityBreakdown.geografia,
+      15
+    );
+}
+
+if (modalScoreQuestions) {
+  modalScoreQuestions.textContent =
+    formatComponentScore(
+      compatibilityBreakdown.preguntas,
+      15
+    );
+}
+
+renderEvaluationList(
+  modalCompatibilityReasons,
+  candidate.motivosCompatibilidad,
+  "No se registraron motivos favorables."
+);
+
+renderEvaluationList(
+  modalCompatibilityAlerts,
+  candidate.alertasCompatibilidad,
+  "No se detectaron alertas."
+);
+
+if (modalCompatibilidadAlert) {
+  modalCompatibilidadAlert.className =
+    getTransportCompatibilityClass(
+      estadoCompatibilidad
+    );
+
+  modalCompatibilidadAlert.textContent =
+    getTransportCompatibilityMessage(
+      candidate
+    );
+}
+    
+  }
+
+  /* CV */
+
+  if (candidate.cvRuta) {
+    if (
+      candidate.cvRuta.startsWith(
+        "http"
+      )
+    ) {
+      modalCvLink.href =
+        candidate.cvRuta;
+    } else {
+      modalCvLink.href =
+        `${API_URL}${candidate.cvRuta}`;
     }
+
+    modalCvLink.classList.remove(
+      "hidden"
+    );
+  } else {
+    modalCvLink.href = "#";
+
+    modalCvLink.classList.add(
+      "hidden"
+    );
+  }
+
+  /* Mapas */
+
+  setMapLink(
+    modalGoogleMapsLink,
+    getGoogleMapsUrl(candidate)
   );
 
-  viewAllTemplatesBtn?.addEventListener(
-    "click",
-    () =>
-      scrollToSection(
-        templatesGrid
-      )
+  setMapLink(
+    modalAppleMapsLink,
+    getAppleMapsUrl(candidate)
   );
 
-  refreshCommunicationsBtn
-    ?.addEventListener(
-      "click",
-      cargarComunicaciones
-    );
+  modal.classList.remove("hidden");
+}
 
-  closeTemplateBackdrop
-    ?.addEventListener(
-      "click",
-      closeTemplateModal
-    );
 
-  closeTemplateModalBtn
-    ?.addEventListener(
-      "click",
-      closeTemplateModal
-    );
+if (selectAllCandidates) {
+  selectAllCandidates.addEventListener(
+    "change",
+    () => {
+      const visibles =
+        getPostulacionesFiltradas();
 
-  cancelTemplateBtn
-    ?.addEventListener(
-      "click",
-      closeTemplateModal
-    );
+      visibles.forEach(
+        (candidate) => {
+          const id =
+            String(
+              candidate.id
+            );
 
-  saveTemplateBtn
-    ?.addEventListener(
-      "click",
-      guardarPlantilla
-    );
-
-  refreshPreviewBtn
-    ?.addEventListener(
-      "click",
-      updateTemplatePreview
-    );
-
-  [
-    templateName,
-    templateSubject,
-    templateText,
-    templateHtml
-  ]
-    .filter(Boolean)
-    .forEach((field) => {
-      field.addEventListener(
-        "input",
-        updateTemplatePreview
-      );
-
-      field.addEventListener(
-        "focus",
-        () => {
           if (
-            field === templateText ||
-            field === templateHtml ||
-            field === templateSubject
+            selectAllCandidates
+              .checked
           ) {
-            activeEditorField =
-              field;
+            selectedCandidateIds
+              .add(id);
+          } else {
+            selectedCandidateIds
+              .delete(id);
           }
         }
       );
-    });
 
-  document
-    .querySelectorAll(
-      "[data-variable]"
-    )
-    .forEach((button) => {
-      button.addEventListener(
-        "click",
-        () => {
-          const variable =
-            button.dataset.variable;
-
-          insertVariableIntoField(
-            activeEditorField ||
-            templateHtml,
-            variable
-          );
-        }
-      );
-    });
-
-  document.addEventListener(
-    "keydown",
-    (event) => {
-      if (
-        event.key === "Escape" &&
-        !templateModal
-          ?.classList
-          .contains("hidden")
-      ) {
-        closeTemplateModal();
-      }
-    }
-  );
-
-  logoutBtn?.addEventListener(
-    "click",
-    async () => {
-      try {
-        if (auth) {
-          await auth.signOut();
-        }
-
-        window.location.href =
-          "login-admin.html";
-      } catch (error) {
-        console.error(
-          "Error cerrando sesión:",
-          error
-        );
-      }
+      renderPostulaciones();
     }
   );
 }
 
-/* =========================================================
-   INICIALIZACIÓN
-========================================================= */
-
-async function iniciarCommunicationCenter() {
-  bindEvents();
-
-  const localTemplates =
-    cargarPlantillasLocales();
-
-  if (localTemplates.length) {
-    plantillas =
-      localTemplates;
-
-    renderPlantillas();
-  } else {
-    plantillas =
-      [...DEFAULT_TEMPLATES];
-
-    renderPlantillas();
-  }
-
-  if (auth) {
-    auth.onAuthStateChanged(
-      async (user) => {
-        if (!user) {
-          window.location.href =
-            "login-admin.html";
-
-          return;
-        }
-
-        adminToken =
-          await obtenerAdminToken();
-
-        await Promise.all([
-          cargarPlantillas(),
-          cargarComunicaciones()
-        ]);
-      }
+if (deleteSelectedCandidatesBtn) {
+  deleteSelectedCandidatesBtn
+    .addEventListener(
+      "click",
+      eliminarPostulacionesSeleccionadas
     );
+}
 
+
+function closeCandidateModal() {
+  modal.classList.add("hidden");
+  selectedCandidate = null;
+}
+
+/* =========================
+   MODAL ENTREVISTA
+========================= */
+function openInterviewModal() {
+  if (!selectedCandidate) {
+    setStatus("⚠️ Primero selecciona un candidato.");
     return;
   }
 
-  /*
-   * Modo de desarrollo mientras se
-   * conecta la autenticación.
-   */
-  await Promise.all([
-    cargarPlantillas(),
-    cargarComunicaciones()
-  ]);
+  if (interviewDate) interviewDate.value = "";
+  if (interviewTime) interviewTime.value = "";
+  if (interviewRecruiter) interviewRecruiter.value = "";
+  if (interviewType) interviewType.value = "presencial";
+  if (interviewComments) interviewComments.value = "";
+
+  interviewModal.classList.remove("hidden");
 }
 
-document.addEventListener(
-  "DOMContentLoaded",
-  iniciarCommunicationCenter
-);
+function closeInterviewModal() {
+  interviewModal.classList.add("hidden");
+}
+
+async function guardarEntrevista() {
+  if (!selectedCandidate?.id) {
+    setStatus("⚠️ No hay candidato seleccionado.");
+    return;
+  }
+
+  const fecha = interviewDate?.value || "";
+  const hora = interviewTime?.value || "";
+  const reclutador = interviewRecruiter?.value.trim() || "";
+  const tipo = interviewType?.value || "presencial";
+  const comentarios = interviewComments?.value.trim() || "";
+
+  if (!fecha || !hora) {
+    setStatus("⚠️ Selecciona fecha y hora para la entrevista.");
+    return;
+  }
+
+  try {
+    if (saveInterviewBtn) {
+      saveInterviewBtn.disabled = true;
+      saveInterviewBtn.textContent = "Guardando...";
+    }
+
+    const res = await fetch(`${API_URL}/api/entrevistas`, {
+      method: "POST",
+      headers: authHeaders({
+        "Content-Type": "application/json"
+      }),
+      body: JSON.stringify({
+  candidatoId: selectedCandidate.id,
+  candidatoNombre: selectedCandidate.nombre || "Sin nombre",
+  correo: selectedCandidate.correo || "",
+  telefono: selectedCandidate.telefono || "",
+
+  puesto:
+    selectedCandidate.vacanteTitulo ||
+    selectedCandidate.puestoInteres ||
+    "",
+
+  marca:
+    selectedCandidate.grupoSeleccionado ||
+    selectedCandidate.grupo ||
+    "GA Hospitality",
+
+  sucursal:
+    selectedCandidate.sucursal ||
+    selectedCandidate.sucursalNombre ||
+    "",
+
+  ciudad: selectedCandidate.ciudad || "",
+  fecha,
+  hora,
+  reclutador,
+  tipo,
+  comentarios
+})
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "No fue posible guardar la entrevista.");
+    }
+
+    closeInterviewModal();
+    closeCandidateModal();
+
+    await cargarPostulaciones();
+
+    setStatus("✅ Entrevista agendada correctamente.");
+  } catch (error) {
+    console.error("Error guardando entrevista:", error);
+    setStatus(`⚠️ ${error.message}`);
+  } finally {
+    if (saveInterviewBtn) {
+      saveInterviewBtn.disabled = false;
+      saveInterviewBtn.textContent = "Guardar entrevista";
+    }
+  }
+}
+function guardarPostulacionesCache(data) {
+  try {
+    sessionStorage.setItem(
+      DASHBOARD_CACHE_KEY,
+      JSON.stringify({
+        timestamp: Date.now(),
+        data
+      })
+    );
+  } catch (error) {
+    console.warn("No se pudo guardar caché:", error);
+  }
+}
+
+function leerPostulacionesCache() {
+  try {
+    const raw = sessionStorage.getItem(DASHBOARD_CACHE_KEY);
+
+    if (!raw) return null;
+
+    const cache = JSON.parse(raw);
+
+    if (Date.now() - cache.timestamp > DASHBOARD_CACHE_TIME) {
+      sessionStorage.removeItem(DASHBOARD_CACHE_KEY);
+      return null;
+    }
+
+    return Array.isArray(cache.data) ? cache.data : null;
+  } catch (error) {
+    return null;
+  }
+}
+/* =========================
+   API
+========================= */
+async function cargarPostulaciones(forceRefresh = false) {
+  const cache = !forceRefresh
+    ? leerPostulacionesCache()
+    : null;
+
+  if (cache) {
+    postulaciones = cache;
+    renderPostulaciones();
+    setStatus("", false);
+  } else {
+    setStatus("Cargando postulaciones...");
+  }
+
+  try {
+    const res = await fetch(`${API_URL}/api/postulaciones`, {
+      headers: authHeaders(),
+      cache: "no-store"
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(
+        data.error || `Error HTTP ${res.status}`
+      );
+    }
+
+    postulaciones = Array.isArray(data) ? data : [];
+
+    guardarPostulacionesCache(postulaciones);
+    renderPostulaciones();
+    setStatus("", false);
+  } catch (error) {
+    console.error(
+      "Error cargando postulaciones:",
+      error
+    );
+
+    if (!cache) {
+      setStatus(
+        `⚠️ ${
+          error.message ||
+          "No fue posible cargar las postulaciones."
+        }`
+      );
+    }
+  }
+}
+
+async function actualizarEstado(nuevoEstado) {
+  if (!selectedCandidate?.id) return;
+
+  try {
+    const res = await fetch(`${API_URL}/api/postulaciones/${selectedCandidate.id}/estado`, {
+      method: "PATCH",
+      headers: authHeaders({
+        "Content-Type": "application/json"
+      }),
+      body: JSON.stringify({ estado: nuevoEstado })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "No fue posible actualizar el estado.");
+    }
+
+    await cargarPostulaciones();
+    closeCandidateModal();
+    setStatus(`✅ Solicitud marcada como ${nuevoEstado}.`);
+  } catch (error) {
+    console.error("Error actualizando estado:", error);
+    setStatus(`⚠️ ${error.message}`);
+  }
+}
+
+async function cerrarSesion() {
+  try {
+    await auth.signOut();
+    window.location.href = "login-admin.html";
+  } catch (error) {
+    console.error("Error cerrando sesión:", error);
+    setStatus("⚠️ No fue posible cerrar sesión.");
+  }
+}
+
+/* =========================
+   EVENTOS SELECCIÓN CANDIDATOS
+========================= */
+
+if (selectAllCandidates) {
+  selectAllCandidates.addEventListener(
+    "change",
+    () => {
+      const visibles =
+        getPostulacionesFiltradas();
+
+      visibles.forEach((candidate) => {
+        const id =
+          String(candidate.id);
+
+        if (selectAllCandidates.checked) {
+          selectedCandidateIds.add(id);
+        } else {
+          selectedCandidateIds.delete(id);
+        }
+      });
+
+      renderPostulaciones();
+    }
+  );
+}
+
+if (deleteSelectedCandidatesBtn) {
+  deleteSelectedCandidatesBtn.addEventListener(
+    "click",
+    eliminarPostulacionesSeleccionadas
+  );
+}
+/* =========================
+   EVENTS
+========================= */
+
+
+if (refreshBtn) {
+  refreshBtn.addEventListener("click", () => {
+    cargarPostulaciones(true);
+  });
+}
+
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", cerrarSesion);
+}
+
+if (closeModalBtn) {
+  closeModalBtn.addEventListener("click", closeCandidateModal);
+}
+
+if (closeModalBackdrop) {
+  closeModalBackdrop.addEventListener("click", closeCandidateModal);
+}
+
+if (approveBtn) {
+  approveBtn.addEventListener("click", () => {
+    actualizarEstado("aprobado");
+  });
+}
+
+if (rejectBtn) {
+  rejectBtn.addEventListener("click", () => {
+    actualizarEstado("rechazado");
+  });
+}
+
+if (scheduleInterviewBtn) {
+  scheduleInterviewBtn.addEventListener(
+    "click",
+    openInterviewModal
+  );
+}
+
+if (closeInterviewBtn) {
+  closeInterviewBtn.addEventListener(
+    "click",
+    closeInterviewModal
+  );
+}
+
+if (closeInterviewBackdrop) {
+  closeInterviewBackdrop.addEventListener(
+    "click",
+    closeInterviewModal
+  );
+}
+
+if (saveInterviewBtn) {
+  saveInterviewBtn.addEventListener(
+    "click",
+    guardarEntrevista
+  );
+}
+
+/* =========================
+   FILTROS Y ORDENAMIENTO
+========================= */
+
+[
+  candidateSearch,
+  candidateStatusFilter,
+  candidateTypeFilter,
+  candidateCompatibilityFilter,
+  candidateTransportFilter,
+  candidateSort
+].forEach((element) => {
+  if (!element) return;
+
+  element.addEventListener(
+    "input",
+    renderPostulaciones
+  );
+
+  element.addEventListener(
+    "change",
+    renderPostulaciones
+  );
+});
+
+if (clearCandidateFiltersBtn) {
+  clearCandidateFiltersBtn.addEventListener(
+    "click",
+    () => {
+      if (candidateSearch) {
+        candidateSearch.value = "";
+      }
+
+      if (candidateStatusFilter) {
+        candidateStatusFilter.value = "";
+      }
+
+      if (candidateTypeFilter) {
+        candidateTypeFilter.value = "";
+      }
+
+      if (
+        candidateCompatibilityFilter
+      ) {
+        candidateCompatibilityFilter
+          .value = "";
+      }
+
+      if (candidateTransportFilter) {
+        candidateTransportFilter
+          .value = "";
+      }
+
+      if (candidateSort) {
+        candidateSort.value =
+          "compatibility_desc";
+      }
+
+      renderPostulaciones();
+    }
+  );
+}
+
+/* =========================
+   INIT
+========================= */
+async function init() {
+  await cargarPostulaciones();
+}
+
+auth.onAuthStateChanged(async (user) => {
+  if (!user) {
+    window.location.href = "login-admin.html";
+    return;
+  }
+
+  try {
+    adminToken = await user.getIdToken(true);
+    await init();
+  } catch (error) {
+    console.error("Error obteniendo token:", error);
+    window.location.href = "login-admin.html";
+  }
+});
